@@ -67,7 +67,7 @@ export class AppComponent {
     try {
       const content = await this.library.getContent(file);
       this.selectedFile.set(file);
-      const blob = new Blob([content], { type: 'text/html;charset=utf-8' });
+      const blob = new Blob([this.prepareHtmlForPreview(content)], { type: 'text/html;charset=utf-8' });
       this.previewUrl.set(this.sanitizer.bypassSecurityTrustResourceUrl(URL.createObjectURL(blob)));
     } catch {
       this.showToast('Não foi possível abrir o arquivo.');
@@ -77,6 +77,27 @@ export class AppComponent {
   closePreview(): void {
     this.selectedFile.set(null);
     this.previewUrl.set(null);
+  }
+
+  private prepareHtmlForPreview(content: string): string {
+    const navigationBridge = `<script>
+      document.addEventListener('click', function(event) {
+        var link = event.target.closest('a[href^="#"]');
+        if (!link) return;
+        var id = decodeURIComponent(link.getAttribute('href').slice(1));
+        var target = document.getElementById(id);
+        if (!target) return;
+        event.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.querySelectorAll('nav a.active').forEach(function(item) {
+          item.classList.remove('active');
+        });
+        link.classList.add('active');
+      });
+    <\/script>`;
+    return content.includes('</body>')
+      ? content.replace('</body>', `${navigationBridge}</body>`)
+      : `${content}${navigationBridge}`;
   }
 
   onDrop(event: DragEvent): void {
