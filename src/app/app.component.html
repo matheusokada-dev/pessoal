@@ -1,0 +1,158 @@
+<div class="app-shell">
+  <aside class="sidebar" [class.open]="menuOpen()">
+    <div class="brand">
+      <div class="brand-mark"><span></span><span></span><span></span></div>
+      <div><strong>StudyVault</strong><small>Sua biblioteca pessoal</small></div>
+      <button class="icon-button close-mobile" aria-label="Fechar menu" (click)="menuOpen.set(false)">×</button>
+    </div>
+
+    <button class="upload-primary" (click)="uploadOpen.set(true)">
+      <span>＋</span> Novo arquivo
+    </button>
+
+    <nav aria-label="Navegação principal">
+      <p class="nav-label">BIBLIOTECA</p>
+      @for (folder of library.folders().slice(0, 1); track folder.id) {
+        <button class="nav-item" [class.active]="selectedFolder() === folder.id" (click)="chooseFolder(folder.id)">
+          <span class="nav-icon">▦</span><span>{{ folder.name }}</span><em>{{ fileCount(folder.id) }}</em>
+        </button>
+      }
+      <button class="nav-item" [class.active]="selectedFolder() === 'favorites'" (click)="selectedFolder.set('favorites')">
+        <span class="nav-icon">☆</span><span>Favoritos</span>
+      </button>
+
+      <div class="folders-heading">
+        <p class="nav-label">PASTAS</p>
+        <button aria-label="Nova pasta" (click)="createFolder()">＋</button>
+      </div>
+      @for (folder of library.folders().slice(1); track folder.id) {
+        <button class="nav-item" [class.active]="selectedFolder() === folder.id" (click)="chooseFolder(folder.id)">
+          <span class="folder-dot" [style.background]="folder.color"></span>
+          <span>{{ folder.name }}</span><em>{{ fileCount(folder.id) }}</em>
+        </button>
+      }
+    </nav>
+
+    <div class="storage">
+      <div class="storage-title"><span>Armazenamento</span><strong>4%</strong></div>
+      <div class="progress"><span></span></div>
+      <small>42 MB de 1 GB usados</small>
+    </div>
+    <div class="profile">
+      <div class="avatar">TS</div>
+      <div><strong>Tatiana</strong><small>Plano gratuito</small></div>
+      <button class="icon-button">•••</button>
+    </div>
+  </aside>
+  @if (menuOpen()) { <button class="backdrop" aria-label="Fechar menu" (click)="menuOpen.set(false)"></button> }
+
+  <main>
+    <header class="topbar">
+      <button class="icon-button mobile-menu" aria-label="Abrir menu" (click)="menuOpen.set(true)">☰</button>
+      <div class="search-wrap">
+        <span>⌕</span>
+        <input type="search" placeholder="Buscar na sua biblioteca..." [ngModel]="search()" (ngModelChange)="search.set($event)">
+        <kbd>⌘ K</kbd>
+      </div>
+      <button class="help-button">?</button>
+    </header>
+
+    <section class="content">
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">MINHA BIBLIOTECA</p>
+          <h1>{{ selectedFolder() === 'favorites' ? 'Favoritos' : sectionTitle() }}</h1>
+          <p>{{ visibleFiles().length }} {{ visibleFiles().length === 1 ? 'arquivo' : 'arquivos' }} na sua coleção</p>
+        </div>
+        <button class="upload-secondary" (click)="uploadOpen.set(true)"><span>↑</span> Fazer upload</button>
+      </div>
+
+      <div class="toolbar">
+        <div class="filter-chip"><span>▰</span> HTML <button>×</button></div>
+        <div class="sort-control">
+          <label for="sort">Ordenar por:</label>
+          <select id="sort" [ngModel]="sort()" (ngModelChange)="sort.set($event)">
+            <option value="recent">Mais recentes</option>
+            <option value="name">Nome</option>
+          </select>
+          <button class="view-button active">▦</button><button class="view-button">☷</button>
+        </div>
+      </div>
+
+      @if (visibleFiles().length) {
+        <div class="file-grid">
+          @for (file of visibleFiles(); track file.id) {
+              <article class="file-card" tabindex="0" (click)="selectFile(file)" (keydown.enter)="selectFile(file)">
+                <div class="preview-paper">
+                  <div class="paper-top"><i></i><i></i><i></i></div>
+                  <div class="paper-content">
+                    <span class="paper-line title-line"></span>
+                    <span class="paper-line"></span><span class="paper-line short"></span>
+                    <div class="paper-box"></div>
+                    <span class="paper-line"></span><span class="paper-line tiny"></span>
+                  </div>
+                  <span class="html-badge">&lt;/&gt; HTML</span>
+                  <button class="favorite" [class.marked]="file.favorite" [attr.aria-label]="file.favorite ? 'Remover dos favoritos' : 'Favoritar'" (click)="toggleFavorite(file, $event)">
+                    {{ file.favorite ? '★' : '☆' }}
+                  </button>
+                </div>
+                <div class="file-info">
+                  <h2>{{ file.name.replace('.html', '') }}</h2>
+                  <p><span class="folder-dot" [style.background]="folderColor(file.folderId)"></span>{{ folderName(file.folderId) }}</p>
+                  <div><span>{{ formatSize(file.size) }}</span><span>•</span><span>{{ file.updatedAt | date:'dd/MM/yyyy' }}</span></div>
+                </div>
+              </article>
+          }
+        </div>
+      } @else {
+        <div class="empty-state"><span>⌁</span><h2>Nenhum arquivo encontrado</h2><p>Envie um HTML ou tente outra busca.</p></div>
+      }
+    </section>
+  </main>
+</div>
+
+@if (uploadOpen()) {
+  <div class="modal-layer" (click)="uploadOpen.set(false)">
+    <section class="upload-modal" role="dialog" aria-modal="true" aria-labelledby="upload-title" (click)="$event.stopPropagation()">
+      <button class="modal-close" aria-label="Fechar" (click)="uploadOpen.set(false)">×</button>
+      <div class="modal-icon">↑</div>
+      <p class="eyebrow">NOVO MATERIAL</p>
+      <h2 id="upload-title">Adicione um arquivo HTML</h2>
+      <p>Ele ficará disponível na sua biblioteca para consultar quando quiser.</p>
+      <label class="drop-zone" (drop)="onDrop($event)" (dragover)="$event.preventDefault()">
+        <input type="file" accept=".html,text/html" (change)="onFileInput($event)">
+        <span class="drop-icon">⌁</span>
+        @if (pendingFile) {
+          <strong>{{ pendingFile.name }}</strong><small>{{ formatSize(pendingFile.size) }}</small>
+        } @else {
+          <strong>Arraste seu HTML até aqui</strong><small>ou clique para selecionar • Máx. 10 MB</small>
+        }
+      </label>
+      <label class="field-label">Salvar na pasta
+        <select [(ngModel)]="uploadFolder">
+          @for (folder of library.folders().slice(1); track folder.id) { <option [value]="folder.id">{{ folder.name }}</option> }
+        </select>
+      </label>
+      <div class="modal-actions">
+        <button class="cancel" (click)="uploadOpen.set(false)">Cancelar</button>
+        <button class="confirm" [disabled]="!pendingFile" (click)="saveUpload()">Adicionar à biblioteca</button>
+      </div>
+    </section>
+  </div>
+}
+
+@if (selectedFile(); as file) {
+  <div class="viewer">
+    <div class="viewer-bar">
+      <div><button class="icon-button" aria-label="Voltar" (click)="closePreview()">←</button><strong>{{ file.name }}</strong></div>
+      <div>
+        <button class="viewer-action" (click)="renameFile(file)">Renomear</button>
+        <button class="viewer-action danger" (click)="deleteFile(file)">Excluir</button>
+        <button class="icon-button" aria-label="Fechar" (click)="closePreview()">×</button>
+      </div>
+    </div>
+    <iframe [src]="previewUrl()" sandbox="allow-scripts" title="Visualização do arquivo HTML"></iframe>
+  </div>
+}
+
+@if (toast()) { <div class="toast"><span>✓</span>{{ toast() }}</div> }

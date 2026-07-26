@@ -1,0 +1,6 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist/study-vault/browser",
+  "framework": "angular",
+  "rewrites": [{"source": "/(.*)", "destination": "/index.html"}]
+}
