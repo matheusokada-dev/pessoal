@@ -33,7 +33,12 @@
     <nav aria-label="Navegação principal">
       <p class="nav-label">BIBLIOTECA</p>
       @for (folder of library.folders().slice(0, 1); track folder.id) {
-        <button class="nav-item" [class.active]="selectedFolder() === folder.id" (click)="chooseFolder(folder.id)">
+        <button class="nav-item folder-target" [class.active]="selectedFolder() === folder.id"
+          [class.drop-active]="dragOverFolder() === folder.id"
+          (click)="chooseFolder(folder.id)"
+          (dragover)="allowFolderDrop(folder.id, $event)"
+          (dragleave)="dragOverFolder.set(null)"
+          (drop)="dropOnFolder(folder.id, $event)">
           <span class="nav-icon">▦</span><span>{{ folder.name }}</span><em>{{ fileCount(folder.id) }}</em>
         </button>
       }
@@ -65,7 +70,7 @@
   </aside>
   @if (menuOpen()) { <button class="backdrop" aria-label="Fechar menu" (click)="menuOpen.set(false)"></button> }
 
-  <main>
+  <main (dragover)="onLibraryDragOver($event)" (dragleave)="externalDrag.set(false)" (drop)="onLibraryDrop($event)">
     <header class="topbar">
       <button class="icon-button mobile-menu" aria-label="Abrir menu" (click)="menuOpen.set(true)">☰</button>
       <div class="search-wrap">
@@ -101,7 +106,11 @@
       @if (visibleFiles().length) {
         <div class="file-grid">
           @for (file of visibleFiles(); track file.id) {
-              <article class="file-card" tabindex="0" (click)="selectFile(file)" (keydown.enter)="selectFile(file)">
+              <article class="file-card" tabindex="0" draggable="true"
+                [class.dragging]="draggedFileId() === file.id"
+                (dragstart)="startFileDrag(file, $event)"
+                (dragend)="endFileDrag()"
+                (click)="selectFile(file)" (keydown.enter)="selectFile(file)">
                 <div class="preview-paper">
                   <div class="paper-top"><i></i><i></i><i></i></div>
                   <div class="paper-content">
@@ -127,6 +136,9 @@
         <div class="empty-state"><span>⌁</span><h2>Nenhum arquivo encontrado</h2><p>Envie um HTML ou tente outra busca.</p></div>
       }
     </section>
+    @if (externalDrag()) {
+      <div class="global-drop"><span>↑</span><strong>Solte o HTML para fazer upload</strong><small>Você poderá escolher a pasta antes de salvar</small></div>
+    }
   </main>
 </div>
 
@@ -165,6 +177,7 @@
     <div class="viewer-bar">
       <div><button class="icon-button" aria-label="Voltar" (click)="closePreview()">←</button><strong>{{ file.name }}</strong></div>
       <div>
+        <button class="viewer-action" (click)="moveSelectedFile(file)">Mover</button>
         <button class="viewer-action" (click)="renameFile(file)">Renomear</button>
         <button class="viewer-action danger" (click)="deleteFile(file)">Excluir</button>
         <button class="icon-button" aria-label="Fechar" (click)="closePreview()">×</button>

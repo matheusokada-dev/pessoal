@@ -117,6 +117,13 @@ export class LibraryService {
     await this.refresh();
   }
 
+  async moveFile(id: string, folder: string): Promise<void> {
+    const { error } = await this.supabase.from('study_files')
+      .update({ folder, updated_at: new Date().toISOString() }).eq('id', id);
+    if (error) throw error;
+    await this.refresh();
+  }
+
   addFolder(name: string): string {
     const id = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || crypto.randomUUID();

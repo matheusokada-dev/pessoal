@@ -25,6 +25,9 @@ export class AppComponent {
   readonly menuOpen = signal(false);
   readonly toast = signal('');
   readonly previewUrl = signal<SafeResourceUrl | null>(null);
+  readonly draggedFileId = signal<string | null>(null);
+  readonly dragOverFolder = signal<string | null>(null);
+  readonly externalDrag = signal(false);
   readonly authBusy = signal(false);
   readonly authError = signal('');
   pendingFile: File | null = null;
@@ -69,8 +72,65 @@ export class AppComponent {
 
   onDrop(event: DragEvent): void {
     event.preventDefault();
+    this.externalDrag.set(false);
     const file = event.dataTransfer?.files.item(0);
     if (file) this.setPending(file);
+  }
+
+  onLibraryDragOver(event: DragEvent): void {
+    if (event.dataTransfer?.types.includes('Files')) {
+      event.preventDefault();
+      this.externalDrag.set(true);
+    }
+  }
+
+  onLibraryDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.externalDrag.set(false);
+    const file = event.dataTransfer?.files.item(0);
+    if (!file) return;
+    this.setPending(file);
+    if (this.pendingFile) this.uploadOpen.set(true);
+  }
+
+  startFileDrag(file: StudyFile, event: DragEvent): void {
+    this.draggedFileId.set(file.id);
+    event.dataTransfer?.setData('text/study-vault-file', file.id);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+  }
+
+  endFileDrag(): void {
+    this.draggedFileId.set(null);
+    this.dragOverFolder.set(null);
+  }
+
+  allowFolderDrop(folderId: string, event: DragEvent): void {
+    event.preventDefault();
+    this.dragOverFolder.set(folderId);
+    if (event.dataTransfer) event.dataTransfer.dropEffect = event.dataTransfer.types.includes('Files') ? 'copy' : 'move';
+  }
+
+  async dropOnFolder(folderId: string, event: DragEvent): Promise<void> {
+    event.preventDefault();
+    event.stopPropagation();
+    this.dragOverFolder.set(null);
+    const externalFile = event.dataTransfer?.files.item(0);
+    if (externalFile) {
+      this.uploadFolder = folderId;
+      this.setPending(externalFile);
+      if (this.pendingFile) this.uploadOpen.set(true);
+      return;
+    }
+    const fileId = event.dataTransfer?.getData('text/study-vault-file') || this.draggedFileId();
+    if (!fileId) return;
+    try {
+      await this.library.moveFile(fileId, folderId);
+      this.showToast(`Arquivo movido para ${this.folderName(folderId)}.`);
+    } catch {
+      this.showToast('Não foi possível mover o arquivo.');
+    } finally {
+      this.endFileDrag();
+    }
   }
 
   onFileInput(event: Event): void {
@@ -116,6 +176,26 @@ export class AppComponent {
     if (name?.trim()) {
       void this.library.renameFile(file.id, name.trim().endsWith('.html') ? name.trim() : `${name.trim()}.html`);
       this.closePreview();
+    }
+  }
+
+  async moveSelectedFile(file: StudyFile): Promise<void> {
+    const folders = this.library.folders().slice(1);
+    const options = folders.map((folder, index) => `${index + 1}. ${folder.name}`).join('\n');
+    const answer = prompt(`Mover para qual pasta?\n\n${options}`, '1');
+    if (!answer) return;
+    const selected = folders[Number(answer) - 1]
+      ?? folders.find(folder => folder.name.toLowerCase() === answer.trim().toLowerCase());
+    if (!selected) {
+      this.showToast('Pasta inválida.');
+      return;
+    }
+    try {
+      await this.library.moveFile(file.id, selected.id);
+      this.selectedFile.set({ ...file, folderId: selected.id });
+      this.showToast(`Arquivo movido para ${selected.name}.`);
+    } catch {
+      this.showToast('Não foi possível mover o arquivo.');
     }
   }
 
