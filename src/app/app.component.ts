@@ -32,10 +32,11 @@ export class AppComponent {
   readonly editingFolder = signal<StudyFolder | null>(null);
   readonly folderSaving = signal(false);
   readonly folderDeleteConfirm = signal(false);
+  readonly selectedFileIds = signal<string[]>([]);
   readonly folderColors = ['#407d63', '#e9914d', '#6c83cb', '#bb6f91', '#8b6fc0', '#c65f55', '#4b9ca6', '#7d8b48'];
   readonly authBusy = signal(false);
   readonly authError = signal('');
-  pendingFile: File | null = null;
+  pendingFiles: File[] = [];
   uploadFolder = 'frontend';
   folderFormName = '';
   folderFormColor = '#407d63';
@@ -81,8 +82,7 @@ export class AppComponent {
   onDrop(event: DragEvent): void {
     event.preventDefault();
     this.externalDrag.set(false);
-    const file = event.dataTransfer?.files.item(0);
-    if (file) this.setPending(file);
+    this.setPendingFiles(Array.from(event.dataTransfer?.files ?? []));
   }
 
   onLibraryDragOver(event: DragEvent): void {
@@ -95,15 +95,15 @@ export class AppComponent {
   onLibraryDrop(event: DragEvent): void {
     event.preventDefault();
     this.externalDrag.set(false);
-    const file = event.dataTransfer?.files.item(0);
-    if (!file) return;
-    this.setPending(file);
-    if (this.pendingFile) this.uploadOpen.set(true);
+    this.setPendingFiles(Array.from(event.dataTransfer?.files ?? []));
+    if (this.pendingFiles.length) this.uploadOpen.set(true);
   }
 
   startFileDrag(file: StudyFile, event: DragEvent): void {
     this.draggedFileId.set(file.id);
-    event.dataTransfer?.setData('text/study-vault-file', file.id);
+    const ids = this.selectedFileIds().includes(file.id) ? this.selectedFileIds() : [file.id];
+    this.selectedFileIds.set(ids);
+    event.dataTransfer?.setData('text/study-vault-files', JSON.stringify(ids));
     if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
   }
 
@@ -122,18 +122,21 @@ export class AppComponent {
     event.preventDefault();
     event.stopPropagation();
     this.dragOverFolder.set(null);
-    const externalFile = event.dataTransfer?.files.item(0);
-    if (externalFile) {
+    const externalFiles = Array.from(event.dataTransfer?.files ?? []);
+    if (externalFiles.length) {
       this.uploadFolder = folderId;
-      this.setPending(externalFile);
-      if (this.pendingFile) this.uploadOpen.set(true);
+      this.setPendingFiles(externalFiles);
+      if (this.pendingFiles.length) this.uploadOpen.set(true);
       return;
     }
-    const fileId = event.dataTransfer?.getData('text/study-vault-file') || this.draggedFileId();
-    if (!fileId) return;
+    let ids: string[] = [];
+    try { ids = JSON.parse(event.dataTransfer?.getData('text/study-vault-files') || '[]') as string[]; } catch {}
+    if (!ids.length && this.draggedFileId()) ids = [this.draggedFileId()!];
+    if (!ids.length) return;
     try {
-      await this.library.moveFile(fileId, folderId);
-      this.showToast(`Arquivo movido para ${this.folderName(folderId)}.`);
+      await this.library.moveFiles(ids, folderId);
+      this.selectedFileIds.set([]);
+      this.showToast(`${ids.length} arquivo(s) movido(s) para ${this.folderName(folderId)}.`);
     } catch {
       this.showToast('Não foi possível mover o arquivo.');
     } finally {
@@ -142,25 +145,26 @@ export class AppComponent {
   }
 
   onFileInput(event: Event): void {
-    const file = (event.target as HTMLInputElement).files?.item(0);
-    if (file) this.setPending(file);
+    this.setPendingFiles(Array.from((event.target as HTMLInputElement).files ?? []));
   }
 
-  private setPending(file: File): void {
-    if (!file.name.toLowerCase().endsWith('.html') && file.type !== 'text/html') {
+  private setPendingFiles(files: File[]): void {
+    const valid = files.filter(file => file.name.toLowerCase().endsWith('.html') || file.type === 'text/html');
+    if (!valid.length) {
       this.showToast('Escolha um arquivo HTML válido.');
       return;
     }
-    this.pendingFile = file;
+    this.pendingFiles = valid;
   }
 
   async saveUpload(): Promise<void> {
-    if (!this.pendingFile) return;
+    if (!this.pendingFiles.length) return;
+    const files = [...this.pendingFiles];
     try {
-      await this.library.addFile(this.pendingFile, this.uploadFolder);
+      for (const file of files) await this.library.addFile(file, this.uploadFolder);
       this.uploadOpen.set(false);
-      this.pendingFile = null;
-      this.showToast('Arquivo sincronizado com sucesso.');
+      this.pendingFiles = [];
+      this.showToast(`${files.length} arquivo(s) sincronizado(s).`);
     } catch (error) {
       this.showToast(error instanceof Error ? error.message : 'Falha no upload.');
     }
@@ -169,6 +173,13 @@ export class AppComponent {
   toggleFavorite(file: StudyFile, event: Event): void {
     event.stopPropagation();
     void this.library.toggleFavorite(file.id);
+  }
+
+  selectCard(file: StudyFile, event: MouseEvent): void {
+    const current = this.selectedFileIds();
+    this.selectedFileIds.set(event.ctrlKey || event.metaKey
+      ? (current.includes(file.id) ? current.filter(id => id !== file.id) : [...current, file.id])
+      : (current.length === 1 && current[0] === file.id ? [] : [file.id]));
   }
 
   deleteFile(file: StudyFile): void {
@@ -310,6 +321,10 @@ export class AppComponent {
 
   formatSize(bytes: number): string {
     return bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  }
+
+  pendingTotalSize(): number {
+    return this.pendingFiles.reduce((sum, file) => sum + file.size, 0);
   }
 
   private showToast(message: string): void {

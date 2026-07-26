@@ -159,6 +159,14 @@ export class LibraryService {
     await this.refresh();
   }
 
+  async moveFiles(ids: string[], folder: string): Promise<void> {
+    if (!ids.length) return;
+    const { error } = await this.supabase.from('study_files')
+      .update({ folder, updated_at: new Date().toISOString() }).in('id', ids);
+    if (error) throw error;
+    await this.refresh();
+  }
+
   async addFolder(name: string, parentId: string | null = null): Promise<string> {
     const user = this.session()?.user;
     if (!user) throw new Error('Sessão expirada.');

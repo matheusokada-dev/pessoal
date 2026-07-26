@@ -116,10 +116,11 @@
         <div class="file-grid">
           @for (file of visibleFiles(); track file.id) {
               <article class="file-card" tabindex="0" draggable="true"
+                [class.selected]="selectedFileIds().includes(file.id)"
                 [class.dragging]="draggedFileId() === file.id"
                 (dragstart)="startFileDrag(file, $event)"
                 (dragend)="endFileDrag()"
-                (click)="selectFile(file)" (keydown.enter)="selectFile(file)">
+                (click)="selectCard(file, $event)" (dblclick)="selectFile(file)" (keydown.enter)="selectFile(file)">
                 <div class="preview-paper">
                   <div class="paper-top"><i></i><i></i><i></i></div>
                   <div class="paper-content">
@@ -160,10 +161,11 @@
       <h2 id="upload-title">Adicione um arquivo HTML</h2>
       <p>Ele ficará disponível na sua biblioteca para consultar quando quiser.</p>
       <label class="drop-zone" (drop)="onDrop($event)" (dragover)="$event.preventDefault()">
-        <input type="file" accept=".html,text/html" (change)="onFileInput($event)">
+        <input type="file" multiple accept=".html,text/html" (change)="onFileInput($event)">
         <span class="drop-icon">⌁</span>
-        @if (pendingFile) {
-          <strong>{{ pendingFile.name }}</strong><small>{{ formatSize(pendingFile.size) }}</small>
+        @if (pendingFiles.length) {
+          <strong>{{ pendingFiles.length === 1 ? pendingFiles[0].name : pendingFiles.length + ' arquivos HTML' }}</strong>
+          <small>{{ formatSize(pendingTotalSize()) }}</small>
         } @else {
           <strong>Arraste seu HTML até aqui</strong><small>ou clique para selecionar • Máx. 10 MB</small>
         }
@@ -177,7 +179,7 @@
       </label>
       <div class="modal-actions">
         <button class="cancel" (click)="uploadOpen.set(false)">Cancelar</button>
-        <button class="confirm" [disabled]="!pendingFile" (click)="saveUpload()">Adicionar à biblioteca</button>
+        <button class="confirm" [disabled]="!pendingFiles.length" (click)="saveUpload()">Adicionar à biblioteca</button>
       </div>
     </section>
   </div>
