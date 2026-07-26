@@ -173,6 +173,13 @@ export class LibraryService {
     return id;
   }
 
+  async updateFolder(id: string, name: string, color: string, parentId: string | null): Promise<void> {
+    const { error } = await this.supabase.from('library_folders')
+      .update({ name, color, parent_id: parentId }).eq('id', id);
+    if (error) throw error;
+    await this.refreshFolders();
+  }
+
   storageUsed(): number {
     return this.files().reduce((total, file) => total + file.size, 0);
   }

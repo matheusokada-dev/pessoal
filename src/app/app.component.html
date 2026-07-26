@@ -48,7 +48,7 @@
 
       <div class="folders-heading">
         <p class="nav-label">PASTAS</p>
-        <button aria-label="Nova pasta" (click)="createFolder()">＋</button>
+        <button aria-label="Nova pasta" (click)="openFolderModal()">＋</button>
       </div>
       @for (folder of orderedFolders(); track folder.id) {
         <button class="nav-item folder-target" [class.active]="selectedFolder() === folder.id"
@@ -61,7 +61,8 @@
           @if (folderDepth(folder.id) > 0) { <span class="tree-branch">↳</span> }
           <span class="folder-dot" [style.background]="folder.color"></span>
           <span class="folder-name">{{ folder.name }}</span><em>{{ fileCount(folder.id) }}</em>
-          <span class="add-subfolder" title="Criar subpasta" (click)="createFolder(folder.id, $event)">＋</span>
+          <span class="folder-action" title="Editar pasta" (click)="openFolderModal(null, folder, $event)">✎</span>
+          <span class="folder-action" title="Criar subpasta" (click)="openFolderModal(folder.id, null, $event)">＋</span>
         </button>
       }
     </nav>
@@ -177,6 +178,50 @@
       <div class="modal-actions">
         <button class="cancel" (click)="uploadOpen.set(false)">Cancelar</button>
         <button class="confirm" [disabled]="!pendingFile" (click)="saveUpload()">Adicionar à biblioteca</button>
+      </div>
+    </section>
+  </div>
+}
+
+@if (folderModalOpen()) {
+  <div class="modal-layer" (click)="folderModalOpen.set(false)">
+    <section class="folder-modal" role="dialog" aria-modal="true" aria-labelledby="folder-title" (click)="$event.stopPropagation()">
+      <button class="modal-close" aria-label="Fechar" (click)="folderModalOpen.set(false)">×</button>
+      <div class="folder-modal-icon">▰</div>
+      <p class="eyebrow">{{ editingFolder() ? 'ORGANIZAR PASTA' : 'NOVA PASTA' }}</p>
+      <h2 id="folder-title">{{ editingFolder() ? 'Editar pasta' : (folderFormParentId ? 'Criar subpasta' : 'Criar pasta') }}</h2>
+      <p class="folder-modal-copy">Personalize o nome, a cor e a posição na sua biblioteca.</p>
+      <label class="folder-field"><span>Nome da pasta</span>
+        <input type="text" [(ngModel)]="folderFormName" placeholder="Ex.: Banco de dados" maxlength="60">
+      </label>
+      <div class="folder-field"><span>Cor</span>
+        <div class="color-palette">
+          @for (color of folderColors; track color) {
+            <button type="button" [style.background]="color" [class.selected]="folderFormColor === color"
+              (click)="folderFormColor = color">@if (folderFormColor === color) { <span>✓</span> }</button>
+          }
+          <label class="custom-color" title="Cor personalizada">
+            <input type="color" [(ngModel)]="folderFormColor"><span>＋</span>
+          </label>
+        </div>
+      </div>
+      <label class="folder-field"><span>Dentro de</span>
+        <select [(ngModel)]="folderFormParentId">
+          <option [ngValue]="null">Biblioteca (nível principal)</option>
+          @for (folder of availableParentFolders(); track folder.id) {
+            <option [ngValue]="folder.id">{{ '— '.repeat(folderDepth(folder.id)) }}{{ folder.name }}</option>
+          }
+        </select>
+      </label>
+      <div class="folder-preview">
+        <span class="folder-dot large" [style.background]="folderFormColor"></span>
+        <div><strong>{{ folderFormName || 'Nome da pasta' }}</strong><small>Pré-visualização</small></div>
+      </div>
+      <div class="modal-actions">
+        <button class="cancel" (click)="folderModalOpen.set(false)">Cancelar</button>
+        <button class="confirm" [disabled]="!folderFormName.trim() || folderSaving()" (click)="saveFolder()">
+          {{ folderSaving() ? 'Salvando…' : (editingFolder() ? 'Salvar alterações' : 'Criar pasta') }}
+        </button>
       </div>
     </section>
   </div>

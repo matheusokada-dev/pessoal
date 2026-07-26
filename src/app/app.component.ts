@@ -28,10 +28,17 @@ export class AppComponent {
   readonly draggedFileId = signal<string | null>(null);
   readonly dragOverFolder = signal<string | null>(null);
   readonly externalDrag = signal(false);
+  readonly folderModalOpen = signal(false);
+  readonly editingFolder = signal<StudyFolder | null>(null);
+  readonly folderSaving = signal(false);
+  readonly folderColors = ['#407d63', '#e9914d', '#6c83cb', '#bb6f91', '#8b6fc0', '#c65f55', '#4b9ca6', '#7d8b48'];
   readonly authBusy = signal(false);
   readonly authError = signal('');
   pendingFile: File | null = null;
   uploadFolder = 'frontend';
+  folderFormName = '';
+  folderFormColor = '#407d63';
+  folderFormParentId: string | null = null;
   username = '';
   password = '';
 
@@ -199,18 +206,50 @@ export class AppComponent {
     }
   }
 
-  async createFolder(parentId: string | null = null, event?: Event): Promise<void> {
+  openFolderModal(parentId: string | null = null, folder: StudyFolder | null = null, event?: Event): void {
     event?.stopPropagation();
-    const name = prompt('Nome da nova pasta:');
-    if (name?.trim()) {
-      try {
-        const id = await this.library.addFolder(name.trim(), parentId);
+    this.editingFolder.set(folder);
+    this.folderFormName = folder?.name ?? '';
+    this.folderFormColor = folder?.color ?? this.folderColors[this.library.folders().length % this.folderColors.length];
+    this.folderFormParentId = folder?.parentId ?? parentId;
+    this.folderModalOpen.set(true);
+  }
+
+  async saveFolder(): Promise<void> {
+    const name = this.folderFormName.trim();
+    if (!name) return;
+    this.folderSaving.set(true);
+    try {
+      const editing = this.editingFolder();
+      if (editing) {
+        await this.library.updateFolder(editing.id, name, this.folderFormColor, this.folderFormParentId);
+        this.showToast('Pasta atualizada.');
+      } else {
+        const id = await this.library.addFolder(name, this.folderFormParentId);
         this.chooseFolder(id);
-        this.showToast(parentId ? 'Subpasta criada.' : 'Pasta criada.');
-      } catch {
-        this.showToast('Não foi possível criar a pasta.');
+        this.showToast(this.folderFormParentId ? 'Subpasta criada.' : 'Pasta criada.');
       }
+      this.folderModalOpen.set(false);
+    } catch {
+      this.showToast('Não foi possível salvar a pasta.');
+    } finally {
+      this.folderSaving.set(false);
     }
+  }
+
+  availableParentFolders(): StudyFolder[] {
+    const editingId = this.editingFolder()?.id;
+    return this.orderedFolders().filter(folder => folder.id !== editingId && !this.isDescendant(folder.id, editingId));
+  }
+
+  private isDescendant(folderId: string, ancestorId?: string): boolean {
+    if (!ancestorId) return false;
+    let current = this.library.folders().find(folder => folder.id === folderId);
+    while (current?.parentId) {
+      if (current.parentId === ancestorId) return true;
+      current = this.library.folders().find(folder => folder.id === current?.parentId);
+    }
+    return false;
   }
 
   orderedFolders(): StudyFolder[] {
