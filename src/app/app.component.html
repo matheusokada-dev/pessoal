@@ -120,6 +120,7 @@
                 [class.dragging]="draggedFileId() === file.id"
                 (dragstart)="startFileDrag(file, $event)"
                 (dragend)="endFileDrag()"
+                (mouseenter)="library.prefetchContent(file)"
                 (click)="selectCard(file, $event)" (dblclick)="selectFile(file)" (keydown.enter)="selectFile(file)">
                 <div class="preview-paper">
                   <div class="paper-top"><i></i><i></i><i></i></div>
@@ -251,7 +252,7 @@
         <button class="icon-button" aria-label="Fechar" (click)="closePreview()">×</button>
       </div>
     </div>
-    <iframe [src]="previewUrl()" sandbox="allow-scripts" title="Visualização do arquivo HTML"></iframe>
+    <iframe [src]="previewUrl()" sandbox="allow-scripts allow-same-origin" title="Visualização do arquivo HTML"></iframe>
   </div>
 }
 

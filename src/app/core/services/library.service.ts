@@ -10,6 +10,7 @@ export class LibraryService {
     environment.supabase.url,
     environment.supabase.publishableKey
   );
+  private readonly contentCache = new Map<string, string>();
   readonly session = signal<Session | null>(null);
   readonly loading = signal(true);
   readonly files = signal<StudyFile[]>([]);
@@ -120,10 +121,26 @@ export class LibraryService {
 
   async getContent(file: StudyFile): Promise<string> {
     if (file.content) return file.content;
+    const cached = this.contentCache.get(file.id);
+    if (cached) return cached;
     if (!file.storagePath) throw new Error('Arquivo indisponível.');
     const { data, error } = await this.supabase.storage.from('study-html').download(file.storagePath);
     if (error) throw error;
-    return data.text();
+    const content = await data.text();
+    this.contentCache.set(file.id, content);
+    return content;
+  }
+
+  prefetchContent(file: StudyFile): void {
+    if (!this.contentCache.has(file.id)) void this.getContent(file).catch(() => undefined);
+  }
+
+  async getPreviewUrl(file: StudyFile): Promise<string> {
+    if (!file.storagePath) throw new Error('Arquivo indisponível.');
+    const { data, error } = await this.supabase.storage
+      .from('study-html').createSignedUrl(file.storagePath, 3600);
+    if (error) throw error;
+    return data.signedUrl;
   }
 
   async toggleFavorite(id: string): Promise<void> {
@@ -142,6 +159,7 @@ export class LibraryService {
     const { error } = await this.supabase.from('study_files').delete().eq('id', id);
     if (error) throw error;
     if (file.storagePath) await this.supabase.storage.from('study-html').remove([file.storagePath]);
+    this.contentCache.delete(id);
     await this.refresh();
   }
 
