@@ -2,8 +2,9 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { LibraryService } from './library.service';
-import { StudyFile } from './models';
+import { LibraryService } from './core/services/library.service';
+import { StudyFile } from './core/models/library.models';
+import { emailToUsername } from './core/auth-identity';
 
 @Component({
   selector: 'app-root',
@@ -24,8 +25,12 @@ export class AppComponent {
   readonly menuOpen = signal(false);
   readonly toast = signal('');
   readonly previewUrl = signal<SafeResourceUrl | null>(null);
+  readonly authBusy = signal(false);
+  readonly authError = signal('');
   pendingFile: File | null = null;
   uploadFolder = 'frontend';
+  username = '';
+  password = '';
 
   readonly visibleFiles = computed(() => {
     const query = this.search().trim().toLowerCase();
@@ -46,10 +51,15 @@ export class AppComponent {
     this.menuOpen.set(false);
   }
 
-  selectFile(file: StudyFile): void {
-    this.selectedFile.set(file);
-    const blob = new Blob([file.content], { type: 'text/html;charset=utf-8' });
-    this.previewUrl.set(this.sanitizer.bypassSecurityTrustResourceUrl(URL.createObjectURL(blob)));
+  async selectFile(file: StudyFile): Promise<void> {
+    try {
+      const content = await this.library.getContent(file);
+      this.selectedFile.set(file);
+      const blob = new Blob([content], { type: 'text/html;charset=utf-8' });
+      this.previewUrl.set(this.sanitizer.bypassSecurityTrustResourceUrl(URL.createObjectURL(blob)));
+    } catch {
+      this.showToast('Não foi possível abrir o arquivo.');
+    }
   }
 
   closePreview(): void {
@@ -78,29 +88,24 @@ export class AppComponent {
 
   async saveUpload(): Promise<void> {
     if (!this.pendingFile) return;
-    const content = await this.pendingFile.text();
-    this.library.addFile({
-      id: crypto.randomUUID(),
-      name: this.pendingFile.name,
-      folderId: this.uploadFolder,
-      size: this.pendingFile.size,
-      updatedAt: new Date().toISOString(),
-      favorite: false,
-      content
-    });
-    this.uploadOpen.set(false);
-    this.pendingFile = null;
-    this.showToast('Arquivo adicionado à sua biblioteca.');
+    try {
+      await this.library.addFile(this.pendingFile, this.uploadFolder);
+      this.uploadOpen.set(false);
+      this.pendingFile = null;
+      this.showToast('Arquivo sincronizado com sucesso.');
+    } catch (error) {
+      this.showToast(error instanceof Error ? error.message : 'Falha no upload.');
+    }
   }
 
   toggleFavorite(file: StudyFile, event: Event): void {
     event.stopPropagation();
-    this.library.toggleFavorite(file.id);
+    void this.library.toggleFavorite(file.id);
   }
 
   deleteFile(file: StudyFile): void {
     if (confirm(`Excluir "${file.name}"?`)) {
-      this.library.deleteFile(file.id);
+      void this.library.deleteFile(file.id);
       this.closePreview();
       this.showToast('Arquivo excluído.');
     }
@@ -109,8 +114,8 @@ export class AppComponent {
   renameFile(file: StudyFile): void {
     const name = prompt('Novo nome do arquivo:', file.name);
     if (name?.trim()) {
-      this.library.renameFile(file.id, name.trim().endsWith('.html') ? name.trim() : `${name.trim()}.html`);
-      this.selectedFile.set(this.library.files().find(item => item.id === file.id) ?? null);
+      void this.library.renameFile(file.id, name.trim().endsWith('.html') ? name.trim() : `${name.trim()}.html`);
+      this.closePreview();
     }
   }
 
@@ -143,5 +148,21 @@ export class AppComponent {
   private showToast(message: string): void {
     this.toast.set(message);
     setTimeout(() => this.toast.set(''), 2600);
+  }
+
+  async authenticate(): Promise<void> {
+    this.authError.set('');
+    if (!this.username || !this.password) {
+      this.authError.set('Informe seu usuário e senha.');
+      return;
+    }
+    this.authBusy.set(true);
+    const error = await this.library.signIn(this.username, this.password);
+    this.authBusy.set(false);
+    if (error) this.authError.set('Usuário ou senha inválidos.');
+  }
+
+  currentUsername(): string {
+    return emailToUsername(this.library.session()?.user.email);
   }
 }

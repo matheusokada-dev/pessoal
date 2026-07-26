@@ -1,6 +1,6 @@
 # StudyVault
 
-Biblioteca pessoal para enviar, organizar e visualizar materiais HTML. O frontend usa Angular 19 e está pronto para Vercel. A pasta `backend/` contém a base de uma API Spring Boot para regras de negócio futuras.
+Biblioteca pessoal para enviar, organizar, sincronizar e visualizar materiais HTML. O frontend usa Angular 19, Supabase Auth/Database/Storage e está pronto para Vercel.
 
 ## Rodar localmente
 
@@ -11,17 +11,26 @@ npm install
 npm start
 ```
 
-Abra `http://localhost:4200`. A aplicação já funciona em modo demonstração, persistindo os arquivos no `localStorage` do navegador.
+Abra `http://localhost:4200` e entre com um usuário previamente cadastrado no Supabase.
 
 ## Persistência em nuvem com Supabase
 
-1. Crie um projeto gratuito no Supabase.
-2. No SQL Editor, execute `supabase/schema.sql`.
-3. Ative um provedor em **Authentication** (email/senha é suficiente).
-4. Use `SUPABASE_URL` e `SUPABASE_ANON_KEY` somente no frontend. Nunca exponha a service-role key.
-5. Troque a implementação de `LibraryService` por um adaptador Supabase que grave metadados nas tabelas e o conteúdo no bucket privado `study-html`.
+1. No projeto Supabase, abra **SQL Editor → New query**.
+2. Cole e execute todo o conteúdo de `supabase/schema.sql`.
+3. Em **Authentication → Users**, crie os usuários da aplicação e marque o email como confirmado.
+4. Em **Authentication → URL Configuration**, use a URL da Vercel como Site URL após o primeiro deploy.
 
-O schema inclui Row Level Security: cada usuário só acessa seus próprios arquivos.
+O cliente já está conectado ao projeto Supabase. O schema usa bucket privado e Row Level Security: cada usuário só acessa seus próprios arquivos.
+
+### Usuários sem email na interface
+
+O login aceita um nome de usuário e o converte internamente para
+`usuario@studyvault.local`. Para cadastrar `matheusokada`, crie no painel:
+
+- Email: `matheusokada@studyvault.local`
+- User metadata: `{"username":"matheusokada","display_name":"Matheus Okada"}`
+
+Senhas existem apenas no Supabase Auth e nunca devem ser gravadas no código-fonte.
 
 ## Deploy do Angular na Vercel
 

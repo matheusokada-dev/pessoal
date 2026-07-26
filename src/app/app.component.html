@@ -1,3 +1,23 @@
+@if (library.loading()) {
+  <div class="splash"><div class="brand-mark"><span></span><span></span><span></span></div><p>Carregando sua biblioteca…</p></div>
+} @else if (!library.session()) {
+  <main class="auth-page">
+    <section class="auth-card">
+      <div class="auth-brand"><div class="brand-mark"><span></span><span></span><span></span></div><strong>StudyVault</strong></div>
+      <p class="eyebrow">SUA BIBLIOTECA NA NUVEM</p>
+      <h1>Acesse sua biblioteca</h1>
+      <p>Acesse seus materiais HTML em qualquer dispositivo.</p>
+      <form (ngSubmit)="authenticate()">
+        <label>Usuário<input type="text" name="username" [(ngModel)]="username" placeholder="Digite seu usuário" required autocomplete="username"></label>
+        <label>Senha<input type="password" name="password" [(ngModel)]="password" placeholder="Digite sua senha" required autocomplete="current-password"></label>
+        @if (authError()) { <div class="auth-message">{{ authError() }}</div> }
+        <button class="confirm auth-submit" type="submit" [disabled]="authBusy()">
+          {{ authBusy() ? 'Aguarde…' : 'Entrar' }}
+        </button>
+      </form>
+    </section>
+  </main>
+} @else {
 <div class="app-shell">
   <aside class="sidebar" [class.open]="menuOpen()">
     <div class="brand">
@@ -34,14 +54,13 @@
     </nav>
 
     <div class="storage">
-      <div class="storage-title"><span>Armazenamento</span><strong>4%</strong></div>
-      <div class="progress"><span></span></div>
-      <small>42 MB de 1 GB usados</small>
+      <div class="storage-title"><span>Armazenamento</span></div>
+      <small>{{ formatSize(library.storageUsed()) }} utilizados</small>
     </div>
     <div class="profile">
-      <div class="avatar">TS</div>
-      <div><strong>Tatiana</strong><small>Plano gratuito</small></div>
-      <button class="icon-button">•••</button>
+      <div class="avatar">MO</div>
+      <div><strong>{{ currentUsername() }}</strong><small>Biblioteca pessoal</small></div>
+      <button class="icon-button" title="Sair" (click)="library.signOut()">↪</button>
     </div>
   </aside>
   @if (menuOpen()) { <button class="backdrop" aria-label="Fechar menu" (click)="menuOpen.set(false)"></button> }
@@ -156,3 +175,4 @@
 }
 
 @if (toast()) { <div class="toast"><span>✓</span>{{ toast() }}</div> }
+}
