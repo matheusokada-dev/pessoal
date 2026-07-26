@@ -50,10 +50,18 @@
         <p class="nav-label">PASTAS</p>
         <button aria-label="Nova pasta" (click)="createFolder()">＋</button>
       </div>
-      @for (folder of library.folders().slice(1); track folder.id) {
-        <button class="nav-item" [class.active]="selectedFolder() === folder.id" (click)="chooseFolder(folder.id)">
+      @for (folder of orderedFolders(); track folder.id) {
+        <button class="nav-item folder-target" [class.active]="selectedFolder() === folder.id"
+          [class.drop-active]="dragOverFolder() === folder.id"
+          [style.padding-left.px]="12 + folderDepth(folder.id) * 18"
+          (click)="chooseFolder(folder.id)"
+          (dragover)="allowFolderDrop(folder.id, $event)"
+          (dragleave)="dragOverFolder.set(null)"
+          (drop)="dropOnFolder(folder.id, $event)">
+          @if (folderDepth(folder.id) > 0) { <span class="tree-branch">↳</span> }
           <span class="folder-dot" [style.background]="folder.color"></span>
-          <span>{{ folder.name }}</span><em>{{ fileCount(folder.id) }}</em>
+          <span class="folder-name">{{ folder.name }}</span><em>{{ fileCount(folder.id) }}</em>
+          <span class="add-subfolder" title="Criar subpasta" (click)="createFolder(folder.id, $event)">＋</span>
         </button>
       }
     </nav>
@@ -161,7 +169,9 @@
       </label>
       <label class="field-label">Salvar na pasta
         <select [(ngModel)]="uploadFolder">
-          @for (folder of library.folders().slice(1); track folder.id) { <option [value]="folder.id">{{ folder.name }}</option> }
+          @for (folder of orderedFolders(); track folder.id) {
+            <option [value]="folder.id">{{ '— '.repeat(folderDepth(folder.id)) }}{{ folder.name }}</option>
+          }
         </select>
       </label>
       <div class="modal-actions">

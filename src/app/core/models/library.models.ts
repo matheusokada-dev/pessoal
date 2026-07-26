@@ -2,6 +2,7 @@ export interface StudyFolder {
   id: string;
   name: string;
   color: string;
+  parentId: string | null;
 }
 
 export interface StudyFile {

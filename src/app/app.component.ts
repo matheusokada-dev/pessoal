@@ -3,7 +3,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { LibraryService } from './core/services/library.service';
-import { StudyFile } from './core/models/library.models';
+import { StudyFile, StudyFolder } from './core/models/library.models';
 import { emailToUsername } from './core/auth-identity';
 
 @Component({
@@ -199,12 +199,41 @@ export class AppComponent {
     }
   }
 
-  createFolder(): void {
+  async createFolder(parentId: string | null = null, event?: Event): Promise<void> {
+    event?.stopPropagation();
     const name = prompt('Nome da nova pasta:');
     if (name?.trim()) {
-      const id = this.library.addFolder(name.trim());
-      this.chooseFolder(id);
+      try {
+        const id = await this.library.addFolder(name.trim(), parentId);
+        this.chooseFolder(id);
+        this.showToast(parentId ? 'Subpasta criada.' : 'Pasta criada.');
+      } catch {
+        this.showToast('Não foi possível criar a pasta.');
+      }
     }
+  }
+
+  orderedFolders(): StudyFolder[] {
+    const folders = this.library.folders().slice(1);
+    const ordered: StudyFolder[] = [];
+    const append = (parentId: string | null): void => {
+      for (const folder of folders.filter(item => item.parentId === parentId)) {
+        ordered.push(folder);
+        append(folder.id);
+      }
+    };
+    append(null);
+    return ordered;
+  }
+
+  folderDepth(folderId: string): number {
+    let depth = 0;
+    let current = this.library.folders().find(folder => folder.id === folderId);
+    while (current?.parentId && depth < 5) {
+      depth++;
+      current = this.library.folders().find(folder => folder.id === current?.parentId);
+    }
+    return depth;
   }
 
   folderName(id: string): string {

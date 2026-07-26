@@ -14,10 +14,7 @@ export class LibraryService {
   readonly loading = signal(true);
   readonly files = signal<StudyFile[]>([]);
   readonly folders = signal<StudyFolder[]>([
-    { id: 'all', name: 'Todos os arquivos', color: '#407d63' },
-    { id: 'frontend', name: 'Frontend', color: '#e9914d' },
-    { id: 'backend', name: 'Backend', color: '#6c83cb' },
-    { id: 'projects', name: 'Projetos', color: '#bb6f91' }
+    { id: 'all', name: 'Todos os arquivos', color: '#407d63', parentId: null }
   ]);
 
   constructor() {
@@ -27,12 +24,15 @@ export class LibraryService {
   private async initialize(): Promise<void> {
     const { data } = await this.supabase.auth.getSession();
     this.session.set(data.session);
-    if (data.session) await this.refresh();
+    if (data.session) await this.refreshAll();
     this.loading.set(false);
     this.supabase.auth.onAuthStateChange((_event, session) => {
       this.session.set(session);
-      if (session) void this.refresh();
-      else this.files.set([]);
+      if (session) void this.refreshAll();
+      else {
+        this.files.set([]);
+        this.folders.set([{ id: 'all', name: 'Todos os arquivos', color: '#407d63', parentId: null }]);
+      }
     });
   }
 
@@ -61,6 +61,41 @@ export class LibraryService {
       favorite: row.favorite as boolean,
       storagePath: row.storage_path as string
     })));
+  }
+
+  async refreshFolders(): Promise<void> {
+    const { data, error } = await this.supabase.from('library_folders')
+      .select('*').order('created_at', { ascending: true });
+    if (error) throw error;
+    if (!data?.length) {
+      const existingIds = [...new Set(this.files().map(file => file.folderId).filter(Boolean))];
+      const user = this.session()?.user;
+      if (user && existingIds.length) {
+        const colors = ['#407d63', '#e9914d', '#6c83cb', '#bb6f91'];
+        const { error: seedError } = await this.supabase.from('library_folders').insert(
+          existingIds.map((id, index) => ({
+            id, user_id: user.id,
+            name: id.charAt(0).toUpperCase() + id.slice(1).replace(/-/g, ' '),
+            color: colors[index % colors.length], parent_id: null
+          }))
+        );
+        if (seedError) throw seedError;
+        return this.refreshFolders();
+      }
+    }
+    this.folders.set([
+      { id: 'all', name: 'Todos os arquivos', color: '#407d63', parentId: null },
+      ...(data ?? []).map(row => ({
+        id: row.id as string,
+        name: row.name as string,
+        color: row.color as string,
+        parentId: (row.parent_id as string | null) ?? null
+      }))
+    ]);
+  }
+
+  async refreshAll(): Promise<void> {
+    await Promise.all([this.refresh(), this.refreshFolders()]);
   }
 
   async addFile(file: File, folderId: string): Promise<void> {
@@ -124,11 +159,17 @@ export class LibraryService {
     await this.refresh();
   }
 
-  addFolder(name: string): string {
-    const id = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || crypto.randomUUID();
+  async addFolder(name: string, parentId: string | null = null): Promise<string> {
+    const user = this.session()?.user;
+    if (!user) throw new Error('Sessão expirada.');
+    const id = crypto.randomUUID();
     const colors = ['#407d63', '#e9914d', '#6c83cb', '#bb6f91'];
-    this.folders.update(items => [...items, { id, name, color: colors[items.length % colors.length] }]);
+    const color = colors[this.folders().length % colors.length];
+    const { error } = await this.supabase.from('library_folders').insert({
+      id, user_id: user.id, name, color, parent_id: parentId
+    });
+    if (error) throw error;
+    await this.refreshFolders();
     return id;
   }
 

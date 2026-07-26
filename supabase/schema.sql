@@ -1,5 +1,20 @@
 create extension if not exists "pgcrypto";
 
+create table if not exists public.library_folders (
+  id text not null,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  color text not null default '#407d63',
+  parent_id text,
+  created_at timestamptz not null default now(),
+  primary key (user_id, id)
+);
+
+alter table public.library_folders enable row level security;
+drop policy if exists "users own folders" on public.library_folders;
+create policy "users own folders" on public.library_folders
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
 create table if not exists public.study_files (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
