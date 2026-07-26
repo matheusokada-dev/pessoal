@@ -31,6 +31,7 @@ export class AppComponent {
   readonly folderModalOpen = signal(false);
   readonly editingFolder = signal<StudyFolder | null>(null);
   readonly folderSaving = signal(false);
+  readonly folderDeleteConfirm = signal(false);
   readonly folderColors = ['#407d63', '#e9914d', '#6c83cb', '#bb6f91', '#8b6fc0', '#c65f55', '#4b9ca6', '#7d8b48'];
   readonly authBusy = signal(false);
   readonly authError = signal('');
@@ -212,7 +213,25 @@ export class AppComponent {
     this.folderFormName = folder?.name ?? '';
     this.folderFormColor = folder?.color ?? this.folderColors[this.library.folders().length % this.folderColors.length];
     this.folderFormParentId = folder?.parentId ?? parentId;
+    this.folderDeleteConfirm.set(false);
     this.folderModalOpen.set(true);
+  }
+
+  async deleteEditingFolder(): Promise<void> {
+    const folder = this.editingFolder();
+    if (!folder) return;
+    this.folderSaving.set(true);
+    try {
+      await this.library.deleteFolder(folder.id, folder.parentId);
+      if (this.selectedFolder() === folder.id) this.chooseFolder(folder.parentId ?? 'all');
+      this.folderModalOpen.set(false);
+      this.showToast('Pasta excluída. Os arquivos foram preservados.');
+    } catch {
+      this.showToast('Não foi possível excluir a pasta.');
+    } finally {
+      this.folderSaving.set(false);
+      this.folderDeleteConfirm.set(false);
+    }
   }
 
   async saveFolder(): Promise<void> {

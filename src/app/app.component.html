@@ -217,7 +217,18 @@
         <span class="folder-dot large" [style.background]="folderFormColor"></span>
         <div><strong>{{ folderFormName || 'Nome da pasta' }}</strong><small>Pré-visualização</small></div>
       </div>
+      @if (folderDeleteConfirm()) {
+        <div class="delete-confirm">
+          <div><strong>Excluir esta pasta?</strong><small>Arquivos e subpastas serão preservados e movidos um nível acima.</small></div>
+          <button (click)="folderDeleteConfirm.set(false)">Manter</button>
+          <button class="confirm-delete" [disabled]="folderSaving()" (click)="deleteEditingFolder()">Excluir</button>
+        </div>
+      }
       <div class="modal-actions">
+        @if (editingFolder() && !folderDeleteConfirm()) {
+          <button class="delete-folder" (click)="folderDeleteConfirm.set(true)">Excluir pasta</button>
+        }
+        <span class="action-spacer"></span>
         <button class="cancel" (click)="folderModalOpen.set(false)">Cancelar</button>
         <button class="confirm" [disabled]="!folderFormName.trim() || folderSaving()" (click)="saveFolder()">
           {{ folderSaving() ? 'Salvando…' : (editingFolder() ? 'Salvar alterações' : 'Criar pasta') }}

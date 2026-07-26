@@ -180,6 +180,19 @@ export class LibraryService {
     await this.refreshFolders();
   }
 
+  async deleteFolder(id: string, parentId: string | null): Promise<void> {
+    const destination = parentId ?? '';
+    const { error: filesError } = await this.supabase.from('study_files')
+      .update({ folder: destination, updated_at: new Date().toISOString() }).eq('folder', id);
+    if (filesError) throw filesError;
+    const { error: childrenError } = await this.supabase.from('library_folders')
+      .update({ parent_id: parentId }).eq('parent_id', id);
+    if (childrenError) throw childrenError;
+    const { error } = await this.supabase.from('library_folders').delete().eq('id', id);
+    if (error) throw error;
+    await this.refreshAll();
+  }
+
   storageUsed(): number {
     return this.files().reduce((total, file) => total + file.size, 0);
   }
