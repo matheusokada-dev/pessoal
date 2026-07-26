@@ -135,14 +135,6 @@ export class LibraryService {
     if (!this.contentCache.has(file.id)) void this.getContent(file).catch(() => undefined);
   }
 
-  async getPreviewUrl(file: StudyFile): Promise<string> {
-    if (!file.storagePath) throw new Error('Arquivo indisponível.');
-    const { data, error } = await this.supabase.storage
-      .from('study-html').createSignedUrl(file.storagePath, 3600);
-    if (error) throw error;
-    return data.signedUrl;
-  }
-
   async toggleFavorite(id: string): Promise<void> {
     const file = this.files().find(item => item.id === id);
     if (!file) return;

@@ -65,9 +65,10 @@ export class AppComponent {
 
   async selectFile(file: StudyFile): Promise<void> {
     try {
-      const signedUrl = await this.library.getPreviewUrl(file);
+      const content = await this.library.getContent(file);
       this.selectedFile.set(file);
-      this.previewUrl.set(this.sanitizer.bypassSecurityTrustResourceUrl(signedUrl));
+      const blob = new Blob([content], { type: 'text/html;charset=utf-8' });
+      this.previewUrl.set(this.sanitizer.bypassSecurityTrustResourceUrl(URL.createObjectURL(blob)));
     } catch {
       this.showToast('Não foi possível abrir o arquivo.');
     }
