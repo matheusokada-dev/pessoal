@@ -1,18 +1,44 @@
-create extension if not exists "pgcrypto";
+alter table public.study_files alter column folder set default '';
 
-create table if not exists public.library_folders (
-  id text not null,
-  user_id uuid not null references auth.users(id) on delete cascade,
-  name text not null,
-  color text not null default '#407d63',
-  parent_id text,
-  created_at timestamptz not null default now(),
-  primary key (user_id, id),
-  constraint library_folders_id_not_reserved check (id <> all (array['all', 'favorites', 'unfiled'])),
-  constraint library_folders_not_self_parent check (parent_id is null or parent_id <> id),
-  constraint library_folders_parent_fk foreign key (user_id, parent_id)
-    references public.library_folders (user_id, id)
-);
+create index if not exists study_files_user_updated_idx
+  on public.study_files (user_id, updated_at desc);
+create index if not exists library_folders_user_parent_idx
+  on public.library_folders (user_id, parent_id);
+
+do $migration$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'library_folders_id_not_reserved'
+      and conrelid = 'public.library_folders'::regclass
+  ) then
+    alter table public.library_folders
+      add constraint library_folders_id_not_reserved
+      check (id <> all (array['all', 'favorites', 'unfiled']));
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'library_folders_not_self_parent'
+      and conrelid = 'public.library_folders'::regclass
+  ) then
+    alter table public.library_folders
+      add constraint library_folders_not_self_parent
+      check (parent_id is null or parent_id <> id);
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'library_folders_parent_fk'
+      and conrelid = 'public.library_folders'::regclass
+  ) then
+    alter table public.library_folders
+      add constraint library_folders_parent_fk
+      foreign key (user_id, parent_id)
+      references public.library_folders (user_id, id);
+  end if;
+end;
+$migration$;
 
 create or replace function public.validate_library_folder_hierarchy()
 returns trigger
@@ -50,33 +76,12 @@ create trigger validate_library_folder_hierarchy
   before insert or update of id, user_id, parent_id on public.library_folders
   for each row execute function public.validate_library_folder_hierarchy();
 
-alter table public.library_folders enable row level security;
 drop policy if exists "users own folders" on public.library_folders;
 create policy "users own folders" on public.library_folders
   for all
   to authenticated
   using ((select auth.uid()) = user_id)
   with check ((select auth.uid()) = user_id);
-
-revoke all on table public.library_folders from anon;
-grant select, insert, update, delete on table public.library_folders to authenticated;
-
-create index if not exists library_folders_user_parent_idx
-  on public.library_folders (user_id, parent_id);
-
-create table if not exists public.study_files (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  name text not null,
-  folder text not null default '',
-  storage_path text not null unique,
-  size_bytes bigint not null default 0,
-  favorite boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-alter table public.study_files enable row level security;
 
 drop policy if exists "users own files" on public.study_files;
 create policy "users own files" on public.study_files
@@ -85,11 +90,23 @@ create policy "users own files" on public.study_files
   using ((select auth.uid()) = user_id)
   with check ((select auth.uid()) = user_id);
 
+revoke all on table public.library_folders from anon;
 revoke all on table public.study_files from anon;
+grant select, insert, update, delete on table public.library_folders to authenticated;
 grant select, insert, update, delete on table public.study_files to authenticated;
 
-create index if not exists study_files_user_updated_idx
-  on public.study_files (user_id, updated_at desc);
+drop policy if exists "users own stored html" on storage.objects;
+create policy "users own stored html" on storage.objects
+  for all
+  to authenticated
+  using (
+    bucket_id = 'study-html'
+    and (select auth.uid())::text = (storage.foldername(name))[1]
+  )
+  with check (
+    bucket_id = 'study-html'
+    and (select auth.uid())::text = (storage.foldername(name))[1]
+  );
 
 create or replace function public.delete_library_folder(target_id text, fallback_parent_id text default null)
 returns void
@@ -124,23 +141,3 @@ $function$;
 
 revoke all on function public.delete_library_folder(text, text) from public, anon;
 grant execute on function public.delete_library_folder(text, text) to authenticated;
-
-insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('study-html', 'study-html', false, 10485760, array['text/html'])
-on conflict (id) do update set
-  public = false,
-  file_size_limit = 10485760,
-  allowed_mime_types = array['text/html'];
-
-drop policy if exists "users own stored html" on storage.objects;
-create policy "users own stored html" on storage.objects
-  for all
-  to authenticated
-  using (
-    bucket_id = 'study-html'
-    and (select auth.uid())::text = (storage.foldername(name))[1]
-  )
-  with check (
-    bucket_id = 'study-html'
-    and (select auth.uid())::text = (storage.foldername(name))[1]
-  );

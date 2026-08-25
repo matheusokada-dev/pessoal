@@ -2,6 +2,14 @@
 
 Biblioteca pessoal para enviar, organizar, sincronizar e visualizar materiais HTML. O frontend usa Angular 19, Supabase Auth/Database/Storage e está pronto para Vercel.
 
+## Experiência da biblioteca
+
+- Sidebar com cabeçalho e rodapé fixos, área de pastas rolável e drawer acessível no celular.
+- Árvore de pastas recolhível, filtro, subpastas, contagem recursiva e recuperação de arquivos órfãos em **Sem pasta**.
+- Busca por arquivo ou pasta, favoritos, ordenação, grade/lista e seleção múltipla para movimentação.
+- Upload em lote com validação de HTML e tamanho, feedback parcial e proteção contra duplicação após falha de sincronização.
+- Preview isolado em `iframe`, cache LRU limitado e descarte seguro de requisições após troca de conta.
+
 ## Rodar localmente
 
 Requisitos: Node 20+.
@@ -21,6 +29,8 @@ Abra `http://localhost:4200` e entre com um usuário previamente cadastrado no S
 4. Em **Authentication → URL Configuration**, use a URL da Vercel como Site URL após o primeiro deploy.
 
 O cliente já está conectado ao projeto Supabase. O schema usa bucket privado e Row Level Security: cada usuário só acessa seus próprios arquivos.
+
+Em uma instalação existente, aplique os arquivos de `supabase/migrations/` em ordem. A migração de endurecimento adiciona índices, grants explícitos, políticas RLS otimizadas, proteção contra ciclos e exclusão transacional de pastas.
 
 ### Usuários sem email na interface
 

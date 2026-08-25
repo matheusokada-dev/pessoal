@@ -1,128 +1,275 @@
 @if (library.loading()) {
-  <div class="splash"><div class="brand-mark"><span></span><span></span><span></span></div><p>Carregando sua biblioteca…</p></div>
+  <div class="splash" role="status" aria-live="polite">
+    <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+    <strong>StudyVault</strong>
+    <p>Organizando sua biblioteca…</p>
+  </div>
 } @else if (!library.session()) {
   <main class="auth-page">
-    <section class="auth-card">
-      <div class="auth-brand"><div class="brand-mark"><span></span><span></span><span></span></div><strong>StudyVault</strong></div>
-      <p class="eyebrow">SUA BIBLIOTECA NA NUVEM</p>
-      <h1>Acesse sua biblioteca</h1>
-      <p>Acesse seus materiais HTML em qualquer dispositivo.</p>
-      <form (ngSubmit)="authenticate()">
-        <label>Usuário<input type="text" name="username" [(ngModel)]="username" placeholder="Digite seu usuário" required autocomplete="username"></label>
-        <label>Senha<input type="password" name="password" [(ngModel)]="password" placeholder="Digite sua senha" required autocomplete="current-password"></label>
-        @if (authError()) { <div class="auth-message">{{ authError() }}</div> }
-        <button class="confirm auth-submit" type="submit" [disabled]="authBusy()">
-          {{ authBusy() ? 'Aguarde…' : 'Entrar' }}
-        </button>
-      </form>
+    <section class="auth-story" aria-labelledby="auth-story-title">
+      <div class="auth-story-brand">
+        <div class="brand-mark inverse" aria-hidden="true"><span></span><span></span><span></span></div>
+        <strong>StudyVault</strong>
+      </div>
+      <div class="auth-story-copy">
+        <p class="eyebrow light">SEU ACERVO PARTICULAR</p>
+        <h1 id="auth-story-title">Menos abas.<br>Mais clareza.</h1>
+        <p>Reúna apostilas, resumos e materiais HTML em uma biblioteca que acompanha o seu ritmo de estudo.</p>
+      </div>
+      <div class="auth-proof" aria-label="Recursos da biblioteca">
+        <span><i aria-hidden="true">01</i> Organize em pastas</span>
+        <span><i aria-hidden="true">02</i> Consulte em qualquer tela</span>
+        <span><i aria-hidden="true">03</i> Mantenha tudo sincronizado</span>
+      </div>
+    </section>
+
+    <section class="auth-panel" aria-labelledby="auth-title">
+      <div class="auth-card">
+        <div class="auth-mobile-brand">
+          <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+          <strong>StudyVault</strong>
+        </div>
+        <p class="eyebrow">BEM-VINDA DE VOLTA</p>
+        <h2 id="auth-title">Entre na sua biblioteca</h2>
+        <p class="auth-copy">Seus materiais ficam privados e disponíveis somente para a sua conta.</p>
+        @if (library.error()) {
+          <div class="system-message" role="status">
+            <span aria-hidden="true">!</span>
+            <p>{{ library.error() }}</p>
+          </div>
+        }
+        <form (ngSubmit)="authenticate()">
+          <label for="username">Usuário</label>
+          <input id="username" type="text" name="username" [(ngModel)]="username"
+            placeholder="Digite seu usuário" required autocomplete="username" autocapitalize="none">
+          <label for="password">Senha</label>
+          <input id="password" type="password" name="password" [(ngModel)]="password"
+            placeholder="Digite sua senha" required autocomplete="current-password">
+          @if (authError()) { <div class="auth-message" role="alert">{{ authError() }}</div> }
+          <button class="primary-button auth-submit" type="submit" [disabled]="authBusy()">
+            <span>{{ authBusy() ? 'Entrando…' : 'Entrar na biblioteca' }}</span>
+            <b aria-hidden="true">→</b>
+          </button>
+        </form>
+        <small class="auth-privacy"><span aria-hidden="true">●</span> Conexão protegida pelo Supabase Auth</small>
+      </div>
     </section>
   </main>
 } @else {
-<div class="app-shell">
-  <aside class="sidebar" [class.open]="menuOpen()">
-    <div class="brand">
-      <div class="brand-mark"><span></span><span></span><span></span></div>
-      <div><strong>StudyVault</strong><small>Sua biblioteca pessoal</small></div>
-      <button class="icon-button close-mobile" aria-label="Fechar menu" (click)="menuOpen.set(false)">×</button>
-    </div>
-
-    <button class="upload-primary" (click)="uploadOpen.set(true)">
-      <span>＋</span> Novo arquivo
-    </button>
-
-    <nav aria-label="Navegação principal">
-      <p class="nav-label">BIBLIOTECA</p>
-      @for (folder of library.folders().slice(0, 1); track folder.id) {
-        <button class="nav-item folder-target" [class.active]="selectedFolder() === folder.id"
-          [class.drop-active]="dragOverFolder() === folder.id"
-          (click)="chooseFolder(folder.id)"
-          (dragover)="allowFolderDrop(folder.id, $event)"
-          (dragleave)="dragOverFolder.set(null)"
-          (drop)="dropOnFolder(folder.id, $event)">
-          <span class="nav-icon">▦</span><span>{{ folder.name }}</span><em>{{ fileCount(folder.id) }}</em>
-        </button>
-      }
-      <button class="nav-item" [class.active]="selectedFolder() === 'favorites'" (click)="selectedFolder.set('favorites')">
-        <span class="nav-icon">☆</span><span>Favoritos</span>
-      </button>
-
-      <div class="folders-heading">
-        <p class="nav-label">PASTAS</p>
-        <button aria-label="Nova pasta" (click)="openFolderModal()">＋</button>
-      </div>
-      @for (folder of orderedFolders(); track folder.id) {
-        <button class="nav-item folder-target" [class.active]="selectedFolder() === folder.id"
-          [class.drop-active]="dragOverFolder() === folder.id"
-          [style.padding-left.px]="12 + folderDepth(folder.id) * 18"
-          (click)="chooseFolder(folder.id)"
-          (dragover)="allowFolderDrop(folder.id, $event)"
-          (dragleave)="dragOverFolder.set(null)"
-          (drop)="dropOnFolder(folder.id, $event)">
-          @if (folderDepth(folder.id) > 0) { <span class="tree-branch">↳</span> }
-          <span class="folder-dot" [style.background]="folder.color"></span>
-          <span class="folder-name">{{ folder.name }}</span><em>{{ fileCount(folder.id) }}</em>
-          <span class="folder-action" title="Editar pasta" (click)="openFolderModal(null, folder, $event)">✎</span>
-          <span class="folder-action" title="Criar subpasta" (click)="openFolderModal(folder.id, null, $event)">＋</span>
-        </button>
-      }
-    </nav>
-
-    <div class="storage">
-      <div class="storage-title"><span>Armazenamento</span></div>
-      <small>{{ formatSize(library.storageUsed()) }} utilizados</small>
-    </div>
-    <div class="profile">
-      <div class="avatar">MO</div>
-      <div><strong>{{ currentUsername() }}</strong><small>Biblioteca pessoal</small></div>
-      <button class="icon-button" title="Sair" (click)="library.signOut()">↪</button>
-    </div>
-  </aside>
-  @if (menuOpen()) { <button class="backdrop" aria-label="Fechar menu" (click)="menuOpen.set(false)"></button> }
-
-  <main (dragover)="onLibraryDragOver($event)" (dragleave)="externalDrag.set(false)" (drop)="onLibraryDrop($event)">
-    <header class="topbar">
-      <button class="icon-button mobile-menu" aria-label="Abrir menu" (click)="menuOpen.set(true)">☰</button>
-      <div class="search-wrap">
-        <span>⌕</span>
-        <input type="search" placeholder="Buscar na sua biblioteca..." [ngModel]="search()" (ngModelChange)="search.set($event)">
-        <kbd>⌘ K</kbd>
-      </div>
-      <button class="help-button">?</button>
-    </header>
-
-    <section class="content">
-      <div class="page-heading">
-        <div>
-          <p class="eyebrow">MINHA BIBLIOTECA</p>
-          <h1>{{ selectedFolder() === 'favorites' ? 'Favoritos' : sectionTitle() }}</h1>
-          <p>{{ visibleFiles().length }} {{ visibleFiles().length === 1 ? 'arquivo' : 'arquivos' }} na sua coleção</p>
+  <div class="app-shell" [attr.inert]="overlayOpen() ? '' : null">
+    <aside #librarySidebar id="library-sidebar" class="sidebar" [class.open]="menuOpen()"
+      aria-label="Navegação da biblioteca"
+      [attr.role]="mobileViewport() ? 'dialog' : null"
+      [attr.aria-modal]="mobileViewport() && menuOpen() ? 'true' : null"
+      [attr.aria-hidden]="mobileViewport() && !menuOpen() ? 'true' : null"
+      [attr.inert]="mobileViewport() && !menuOpen() ? '' : null">
+      <div class="sidebar-head">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+          <div><strong>StudyVault</strong><small>Biblioteca de estudos</small></div>
         </div>
-        <button class="upload-secondary" (click)="uploadOpen.set(true)"><span>↑</span> Fazer upload</button>
+        <button #sidebarCloseButton class="icon-button close-mobile" type="button"
+          aria-label="Fechar menu" (click)="closeMobileMenu()">×</button>
       </div>
 
-      <div class="toolbar">
-        <div class="filter-chip"><span>▰</span> HTML <button>×</button></div>
-        <div class="sort-control">
-          <label for="sort">Ordenar por:</label>
-          <select id="sort" [ngModel]="sort()" (ngModelChange)="sort.set($event)">
-            <option value="recent">Mais recentes</option>
-            <option value="name">Nome</option>
-          </select>
-          <button class="view-button active">▦</button><button class="view-button">☷</button>
+      <div class="sidebar-action">
+        <button class="upload-primary" type="button" (click)="openUpload()">
+          <span class="button-icon" aria-hidden="true">＋</span>
+          <span>Novo material</span>
+          <small>HTML</small>
+        </button>
+      </div>
+
+      <div class="sidebar-scroll">
+        <nav class="quick-nav" aria-label="Atalhos da biblioteca">
+          <p class="nav-label">BIBLIOTECA</p>
+          <button class="nav-item" type="button" [class.active]="selectedFolder() === 'all'"
+            [attr.aria-current]="selectedFolder() === 'all' ? 'page' : null" (click)="chooseFolder('all')">
+            <span class="nav-icon files-icon" aria-hidden="true"></span>
+            <span>Todos os arquivos</span><em>{{ fileCount('all') }}</em>
+          </button>
+          <button class="nav-item" type="button" [class.active]="selectedFolder() === 'favorites'"
+            [attr.aria-current]="selectedFolder() === 'favorites' ? 'page' : null" (click)="chooseFolder('favorites')">
+            <span class="nav-icon" aria-hidden="true">☆</span>
+            <span>Favoritos</span><em>{{ fileCount('favorites') }}</em>
+          </button>
+          <button class="nav-item folder-target" type="button" [class.active]="selectedFolder() === 'unfiled'"
+            [class.drop-active]="dragOverFolder() === 'unfiled'"
+            [attr.aria-current]="selectedFolder() === 'unfiled' ? 'page' : null"
+            (click)="chooseFolder('unfiled')" (dragover)="allowFolderDrop('', $event)"
+            (dragleave)="dragOverFolder.set(null)" (drop)="dropOnFolder('', $event)">
+            <span class="nav-icon unfiled-icon" aria-hidden="true"></span>
+            <span>Sem pasta</span><em>{{ fileCount('unfiled') }}</em>
+          </button>
+        </nav>
+
+        <section class="folders-nav" aria-labelledby="folders-label">
+          <div class="folders-heading">
+            <p id="folders-label" class="nav-label">PASTAS</p>
+            <button type="button" aria-label="Criar pasta" title="Criar pasta" (click)="openFolderModal()">＋</button>
+          </div>
+
+          @if (folderTree().length > 6) {
+            <label class="folder-search">
+              <span aria-hidden="true">⌕</span>
+              <span class="sr-only">Filtrar pastas</span>
+              <input type="search" [ngModel]="folderSearch()" (ngModelChange)="folderSearch.set($event)"
+                placeholder="Filtrar pastas…">
+              @if (folderSearch()) {
+                <button type="button" aria-label="Limpar filtro de pastas" (click)="folderSearch.set('')">×</button>
+              }
+            </label>
+          }
+
+          <ul class="folder-tree" aria-label="Pastas da biblioteca">
+            @for (entry of visibleFolderEntries(); track entry.folder.id) {
+              <li class="folder-row folder-target"
+                [style.padding-left.px]="6 + entry.depth * 14"
+                [class.active]="selectedFolder() === entry.folder.id"
+                [class.drop-active]="dragOverFolder() === entry.folder.id"
+                (dragover)="allowFolderDrop(entry.folder.id, $event)"
+                (dragleave)="dragOverFolder.set(null)"
+                (drop)="dropOnFolder(entry.folder.id, $event)">
+                @if (entry.hasChildren) {
+                  <button class="tree-toggle" type="button"
+                    [attr.aria-label]="(isFolderCollapsed(entry.folder.id) ? 'Expandir ' : 'Recolher ') + entry.folder.name"
+                    [attr.aria-expanded]="!isFolderCollapsed(entry.folder.id)"
+                    (click)="toggleFolderCollapse(entry, $event)">
+                    <span [class.collapsed]="isFolderCollapsed(entry.folder.id)" aria-hidden="true">⌄</span>
+                  </button>
+                } @else {
+                  <span class="tree-spacer" aria-hidden="true"></span>
+                }
+                <button class="folder-link" type="button"
+                  [attr.aria-current]="selectedFolder() === entry.folder.id ? 'page' : null"
+                  [attr.title]="folderPath(entry.folder.id)" (click)="chooseFolder(entry.folder.id)">
+                  <span class="folder-dot" [style.background]="entry.folder.color" aria-hidden="true"></span>
+                  <span class="folder-name">{{ entry.folder.name }}</span>
+                </button>
+                <span class="folder-count" [attr.aria-label]="entry.totalCount + ' arquivos'">{{ entry.totalCount }}</span>
+                <div class="folder-actions">
+                  <button type="button" [attr.aria-label]="'Criar subpasta em ' + entry.folder.name"
+                    title="Criar subpasta" (click)="openFolderModal(entry.folder.id, null, $event)">＋</button>
+                  <button type="button" [attr.aria-label]="'Editar pasta ' + entry.folder.name"
+                    title="Editar pasta" (click)="openFolderModal(null, entry.folder, $event)">•••</button>
+                </div>
+              </li>
+            } @empty {
+              <li class="folder-empty">{{ folderSearch() ? 'Nenhuma pasta corresponde ao filtro.' : 'Crie sua primeira pasta.' }}</li>
+            }
+          </ul>
+        </section>
+      </div>
+
+      <footer class="sidebar-footer">
+        <div class="storage">
+          <div class="storage-title"><span>Seu acervo</span><strong>{{ fileCount('all') }} itens</strong></div>
+          <div class="storage-bar" aria-hidden="true"><span></span></div>
+          <small>{{ formatSize(library.storageUsed()) }} armazenados com segurança</small>
         </div>
-      </div>
+        <div class="profile">
+          <div class="avatar" aria-hidden="true">{{ avatarInitials() }}</div>
+          <div><strong>{{ currentDisplayName() }}</strong><small>Biblioteca pessoal</small></div>
+          <button class="icon-button" type="button" aria-label="Sair da biblioteca" title="Sair" (click)="signOut()">↗</button>
+        </div>
+      </footer>
+    </aside>
 
-      @if (visibleFiles().length) {
-        <div class="file-grid">
-          @for (file of visibleFiles(); track file.id) {
-              <article class="file-card" tabindex="0" draggable="true"
+    @if (menuOpen()) {
+      <button class="backdrop" type="button" aria-label="Fechar menu" (click)="closeMobileMenu()"></button>
+    }
+
+    <main class="library-main" [attr.inert]="mobileViewport() && menuOpen() ? '' : null"
+      (dragenter)="onLibraryDragEnter($event)" (dragover)="onLibraryDragOver($event)"
+      (dragleave)="onLibraryDragLeave($event)" (drop)="onLibraryDrop($event)">
+      <header class="topbar">
+        <button #mobileMenuButton class="icon-button mobile-menu" type="button"
+          aria-label="Abrir menu" aria-controls="library-sidebar" [attr.aria-expanded]="menuOpen()"
+          (click)="openMobileMenu()">☰</button>
+        <label class="search-wrap">
+          <span aria-hidden="true">⌕</span>
+          <span class="sr-only">Buscar na biblioteca</span>
+          <input #librarySearch type="search" placeholder="Buscar por arquivo ou pasta…"
+            aria-keyshortcuts="Control+K Meta+K" [ngModel]="search()" (ngModelChange)="search.set($event)">
+          @if (search()) {
+            <button type="button" aria-label="Limpar busca" (click)="search.set('')">×</button>
+          } @else {
+            <kbd>Ctrl K</kbd>
+          }
+        </label>
+        <button class="help-button" type="button" aria-label="Abrir ajuda e atalhos" (click)="openHelp()">?</button>
+      </header>
+
+      <section class="content">
+        @if (library.error()) {
+          <div class="sync-banner" role="status">
+            <div><span aria-hidden="true">!</span><p><strong>Sincronização pausada</strong>{{ library.error() }}</p></div>
+            <button type="button" (click)="retrySync()">Tentar novamente</button>
+          </div>
+        }
+
+        <div class="page-heading">
+          <div class="heading-copy">
+            @if (breadcrumbs().length > 1) {
+              <nav class="breadcrumbs" aria-label="Caminho da pasta">
+                <button type="button" (click)="chooseFolder('all')">Biblioteca</button>
+                @for (folder of breadcrumbs(); track folder.id; let last = $last) {
+                  <span aria-hidden="true">/</span>
+                  @if (last) { <strong>{{ folder.name }}</strong> }
+                  @else { <button type="button" (click)="chooseFolder(folder.id)">{{ folder.name }}</button> }
+                }
+              </nav>
+            } @else {
+              <p class="eyebrow">MINHA BIBLIOTECA</p>
+            }
+            <h1>{{ sectionTitle() }}</h1>
+            <p>
+              {{ visibleFiles().length }} {{ visibleFiles().length === 1 ? 'arquivo encontrado' : 'arquivos encontrados' }}
+              @if (search()) { <span>para “{{ search() }}”</span> }
+            </p>
+          </div>
+          <div class="heading-actions">
+            <div class="collection-stats" aria-label="Resumo do acervo">
+              <span><strong>{{ favoriteCount() }}</strong> favoritos</span>
+              <span><strong>{{ folderTree().length }}</strong> pastas</span>
+            </div>
+            <button class="upload-secondary" type="button" (click)="openUpload()"><span aria-hidden="true">↑</span> Fazer upload</button>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="filter-chip"><span aria-hidden="true">&lt;/&gt;</span> Materiais HTML</div>
+          <div class="sort-control">
+            <label for="sort">Ordenar</label>
+            <select id="sort" [ngModel]="sort()" (ngModelChange)="sort.set($event)">
+              <option value="recent">Mais recentes</option>
+              <option value="name">Nome A–Z</option>
+            </select>
+            <div class="view-switch" role="group" aria-label="Modo de visualização">
+              <button type="button" [class.active]="viewMode() === 'grid'" [attr.aria-pressed]="viewMode() === 'grid'"
+                aria-label="Exibir em grade" (click)="viewMode.set('grid')">▦</button>
+              <button type="button" [class.active]="viewMode() === 'list'" [attr.aria-pressed]="viewMode() === 'list'"
+                aria-label="Exibir em lista" (click)="viewMode.set('list')">☷</button>
+            </div>
+          </div>
+        </div>
+
+        @if (selectedFileIds().length) {
+          <div class="selection-bar" role="status">
+            <span><strong>{{ selectedFileIds().length }}</strong> selecionado(s) — arraste para uma pasta para organizar.</span>
+            <button type="button" (click)="clearSelection()">Limpar seleção</button>
+          </div>
+        }
+
+        @if (visibleFiles().length) {
+          <div class="file-grid" [class.list-view]="viewMode() === 'list'">
+            @for (file of visibleFiles(); track file.id) {
+              <article class="file-card" draggable="true"
                 [class.selected]="selectedFileIds().includes(file.id)"
                 [class.dragging]="draggedFileId() === file.id"
-                (dragstart)="startFileDrag(file, $event)"
-                (dragend)="endFileDrag()"
-                (mouseenter)="library.prefetchContent(file)"
-                (click)="selectCard(file, $event)" (dblclick)="selectFile(file)" (keydown.enter)="selectFile(file)">
-                <div class="preview-paper">
+                (dragstart)="startFileDrag(file, $event)" (dragend)="endFileDrag()"
+                (mouseenter)="library.prefetchContent(file)">
+                <div class="preview-paper" aria-hidden="true">
                   <div class="paper-top"><i></i><i></i><i></i></div>
                   <div class="paper-content">
                     <span class="paper-line title-line"></span>
@@ -130,131 +277,223 @@
                     <div class="paper-box"></div>
                     <span class="paper-line"></span><span class="paper-line tiny"></span>
                   </div>
-                  <span class="html-badge">&lt;/&gt; HTML</span>
-                  <button class="favorite" [class.marked]="file.favorite" [attr.aria-label]="file.favorite ? 'Remover dos favoritos' : 'Favoritar'" (click)="toggleFavorite(file, $event)">
-                    {{ file.favorite ? '★' : '☆' }}
-                  </button>
+                  <span class="html-badge">HTML</span>
                 </div>
+                <button class="select-file" type="button" [class.active]="selectedFileIds().includes(file.id)"
+                  [attr.aria-pressed]="selectedFileIds().includes(file.id)"
+                  [attr.aria-label]="(selectedFileIds().includes(file.id) ? 'Desmarcar ' : 'Selecionar ') + file.name"
+                  (click)="toggleFileSelection(file, $event)"><span aria-hidden="true">✓</span></button>
+                <button class="favorite" type="button" [class.marked]="file.favorite"
+                  [attr.aria-pressed]="file.favorite"
+                  [attr.aria-label]="file.favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'"
+                  (click)="toggleFavorite(file, $event)">{{ file.favorite ? '★' : '☆' }}</button>
                 <div class="file-info">
-                  <h2>{{ file.name.replace('.html', '') }}</h2>
-                  <p><span class="folder-dot" [style.background]="folderColor(file.folderId)"></span>{{ folderName(file.folderId) }}</p>
-                  <div><span>{{ formatSize(file.size) }}</span><span>•</span><span>{{ file.updatedAt | date:'dd/MM/yyyy' }}</span></div>
+                  <button class="file-open" type="button" [attr.aria-label]="'Abrir ' + file.name" (click)="selectFile(file)">
+                    <h2>{{ displayFileName(file.name) }}</h2>
+                    <span aria-hidden="true">↗</span>
+                  </button>
+                  <p><span class="folder-dot" [style.background]="folderColor(file.folderId)" aria-hidden="true"></span>{{ folderPath(file.folderId) }}</p>
+                  <div class="file-meta"><span>{{ formatSize(file.size) }}</span><span aria-hidden="true">•</span><span>Atualizado em {{ file.updatedAt | date:'dd/MM/yyyy' }}</span></div>
                 </div>
               </article>
-          }
-        </div>
-      } @else {
-        <div class="empty-state"><span>⌁</span><h2>Nenhum arquivo encontrado</h2><p>Envie um HTML ou tente outra busca.</p></div>
-      }
-    </section>
-    @if (externalDrag()) {
-      <div class="global-drop"><span>↑</span><strong>Solte o HTML para fazer upload</strong><small>Você poderá escolher a pasta antes de salvar</small></div>
-    }
-  </main>
-</div>
-
-@if (uploadOpen()) {
-  <div class="modal-layer" (click)="uploadOpen.set(false)">
-    <section class="upload-modal" role="dialog" aria-modal="true" aria-labelledby="upload-title" (click)="$event.stopPropagation()">
-      <button class="modal-close" aria-label="Fechar" (click)="uploadOpen.set(false)">×</button>
-      <div class="modal-icon">↑</div>
-      <p class="eyebrow">NOVO MATERIAL</p>
-      <h2 id="upload-title">Adicione um arquivo HTML</h2>
-      <p>Ele ficará disponível na sua biblioteca para consultar quando quiser.</p>
-      <label class="drop-zone" (drop)="onDrop($event)" (dragover)="$event.preventDefault()">
-        <input type="file" multiple accept=".html,text/html" (change)="onFileInput($event)">
-        <span class="drop-icon">⌁</span>
-        @if (pendingFiles.length) {
-          <strong>{{ pendingFiles.length === 1 ? pendingFiles[0].name : pendingFiles.length + ' arquivos HTML' }}</strong>
-          <small>{{ formatSize(pendingTotalSize()) }}</small>
+            }
+          </div>
         } @else {
-          <strong>Arraste seu HTML até aqui</strong><small>ou clique para selecionar • Máx. 10 MB</small>
+          <div class="empty-state">
+            <div class="empty-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+            <p class="eyebrow">ESPAÇO LIVRE</p>
+            <h2>{{ search() ? 'Nada corresponde à sua busca' : 'Esta seção está pronta para receber materiais' }}</h2>
+            <p>{{ search() ? 'Tente um nome de arquivo, pasta ou outra palavra-chave.' : 'Envie um HTML e transforme arquivos soltos em uma coleção fácil de consultar.' }}</p>
+            @if (search()) {
+              <button class="secondary-button" type="button" (click)="search.set('')">Limpar busca</button>
+            } @else {
+              <button class="primary-button" type="button" (click)="openUpload()">Adicionar primeiro material</button>
+            }
+          </div>
         }
-      </label>
-      <label class="field-label">Salvar na pasta
-        <select [(ngModel)]="uploadFolder">
-          @for (folder of orderedFolders(); track folder.id) {
-            <option [value]="folder.id">{{ '— '.repeat(folderDepth(folder.id)) }}{{ folder.name }}</option>
+      </section>
+
+      @if (externalDrag()) {
+        <div class="global-drop" aria-hidden="true">
+          <div class="drop-orbit"><span>↑</span></div>
+          <strong>Solte para adicionar à biblioteca</strong>
+          <small>Você escolherá a pasta antes de salvar</small>
+        </div>
+      }
+    </main>
+  </div>
+
+  @if (uploadOpen()) {
+    <div class="modal-layer" (click)="closeUpload()">
+      <section class="modal upload-modal" role="dialog" aria-modal="true" aria-labelledby="upload-title" (click)="$event.stopPropagation()">
+        <button class="modal-close" type="button" data-dialog-initial aria-label="Fechar upload"
+          [disabled]="uploadSaving()" (click)="closeUpload()">×</button>
+        <div class="modal-icon" aria-hidden="true">↑</div>
+        <p class="eyebrow">NOVO MATERIAL</p>
+        <h2 id="upload-title">Adicione arquivos HTML</h2>
+        <p class="modal-copy">Eles ficarão privados, sincronizados e prontos para consulta em qualquer dispositivo.</p>
+        <label class="drop-zone" (drop)="onDrop($event)" (dragover)="$event.preventDefault()">
+          <input type="file" multiple accept=".html,text/html" [disabled]="uploadSaving()" (change)="onFileInput($event)">
+          <span class="drop-icon" aria-hidden="true">⌁</span>
+          @if (pendingFiles.length) {
+            <strong>{{ pendingFiles.length === 1 ? pendingFiles[0].name : pendingFiles.length + ' arquivos HTML' }}</strong>
+            <small>{{ formatSize(pendingTotalSize()) }} selecionados</small>
+          } @else {
+            <strong>Arraste seus HTMLs até aqui</strong><small>ou clique para selecionar • até 10 MB por arquivo</small>
+          }
+        </label>
+        <label class="field-label" for="upload-folder">Salvar em</label>
+        <select id="upload-folder" class="field-control" [disabled]="uploadSaving()" [(ngModel)]="uploadFolder">
+          <option value="">Sem pasta</option>
+          @for (entry of folderTree(); track entry.folder.id) {
+            <option [value]="entry.folder.id">{{ '— '.repeat(entry.depth) }}{{ entry.folder.name }}</option>
           }
         </select>
-      </label>
-      <div class="modal-actions">
-        <button class="cancel" (click)="uploadOpen.set(false)">Cancelar</button>
-        <button class="confirm" [disabled]="!pendingFiles.length" (click)="saveUpload()">Adicionar à biblioteca</button>
-      </div>
-    </section>
-  </div>
-}
-
-@if (folderModalOpen()) {
-  <div class="modal-layer" (click)="folderModalOpen.set(false)">
-    <section class="folder-modal" role="dialog" aria-modal="true" aria-labelledby="folder-title" (click)="$event.stopPropagation()">
-      <button class="modal-close" aria-label="Fechar" (click)="folderModalOpen.set(false)">×</button>
-      <div class="folder-modal-icon">▰</div>
-      <p class="eyebrow">{{ editingFolder() ? 'ORGANIZAR PASTA' : 'NOVA PASTA' }}</p>
-      <h2 id="folder-title">{{ editingFolder() ? 'Editar pasta' : (folderFormParentId ? 'Criar subpasta' : 'Criar pasta') }}</h2>
-      <p class="folder-modal-copy">Personalize o nome, a cor e a posição na sua biblioteca.</p>
-      <label class="folder-field"><span>Nome da pasta</span>
-        <input type="text" [(ngModel)]="folderFormName" placeholder="Ex.: Banco de dados" maxlength="60">
-      </label>
-      <div class="folder-field"><span>Cor</span>
-        <div class="color-palette">
-          @for (color of folderColors; track color) {
-            <button type="button" [style.background]="color" [class.selected]="folderFormColor === color"
-              (click)="folderFormColor = color">@if (folderFormColor === color) { <span>✓</span> }</button>
-          }
-          <label class="custom-color" title="Cor personalizada">
-            <input type="color" [(ngModel)]="folderFormColor"><span>＋</span>
-          </label>
+        <div class="modal-actions">
+          <button class="secondary-button" type="button" [disabled]="uploadSaving()" (click)="closeUpload()">Cancelar</button>
+          <button class="primary-button" type="button" [disabled]="!pendingFiles.length || uploadSaving()" (click)="saveUpload()">
+            {{ uploadSaving() ? 'Sincronizando…' : 'Adicionar à biblioteca' }}
+          </button>
         </div>
-      </div>
-      <label class="folder-field"><span>Dentro de</span>
-        <select [(ngModel)]="folderFormParentId">
+      </section>
+    </div>
+  }
+
+  @if (folderModalOpen()) {
+    <div class="modal-layer" (click)="closeFolderModal()">
+      <section class="modal folder-modal" role="dialog" aria-modal="true" aria-labelledby="folder-title" (click)="$event.stopPropagation()">
+        <button class="modal-close" type="button" aria-label="Fechar" [disabled]="folderSaving()" (click)="closeFolderModal()">×</button>
+        <div class="modal-icon folder-modal-icon" aria-hidden="true"></div>
+        <p class="eyebrow">{{ editingFolder() ? 'ORGANIZAR PASTA' : 'NOVA PASTA' }}</p>
+        <h2 id="folder-title">{{ editingFolder() ? 'Editar pasta' : (folderFormParentId ? 'Criar subpasta' : 'Criar pasta') }}</h2>
+        <p class="modal-copy">Dê um nome claro, escolha uma cor e defina onde ela aparece.</p>
+        <label class="field-label" for="folder-name">Nome da pasta</label>
+        <input id="folder-name" class="field-control" type="text" [disabled]="folderSaving()"
+          [(ngModel)]="folderFormName" placeholder="Ex.: Banco de dados" maxlength="60">
+        <div class="field-group">
+          <span class="field-label">Cor</span>
+          <div class="color-palette" role="group" aria-label="Cor da pasta">
+            @for (color of folderColors; track color) {
+              <button type="button" [disabled]="folderSaving()" [style.background]="color" [class.selected]="folderFormColor === color"
+                [attr.aria-label]="'Usar cor ' + color" [attr.aria-pressed]="folderFormColor === color"
+                (click)="folderFormColor = color">@if (folderFormColor === color) { <span aria-hidden="true">✓</span> }</button>
+            }
+            <label class="custom-color" title="Escolher cor personalizada">
+              <span class="sr-only">Cor personalizada</span>
+              <input type="color" [disabled]="folderSaving()" [(ngModel)]="folderFormColor"><span aria-hidden="true">＋</span>
+            </label>
+          </div>
+        </div>
+        <label class="field-label" for="folder-parent">Dentro de</label>
+        <select id="folder-parent" class="field-control" [disabled]="folderSaving()" [(ngModel)]="folderFormParentId">
           <option [ngValue]="null">Biblioteca (nível principal)</option>
           @for (folder of availableParentFolders(); track folder.id) {
             <option [ngValue]="folder.id">{{ '— '.repeat(folderDepth(folder.id)) }}{{ folder.name }}</option>
           }
         </select>
-      </label>
-      <div class="folder-preview">
-        <span class="folder-dot large" [style.background]="folderFormColor"></span>
-        <div><strong>{{ folderFormName || 'Nome da pasta' }}</strong><small>Pré-visualização</small></div>
-      </div>
-      @if (folderDeleteConfirm()) {
-        <div class="delete-confirm">
-          <div><strong>Excluir esta pasta?</strong><small>Arquivos e subpastas serão preservados e movidos um nível acima.</small></div>
-          <button (click)="folderDeleteConfirm.set(false)">Manter</button>
-          <button class="confirm-delete" [disabled]="folderSaving()" (click)="deleteEditingFolder()">Excluir</button>
+        <div class="folder-preview">
+          <span class="folder-dot large" [style.background]="folderFormColor" aria-hidden="true"></span>
+          <div><strong>{{ folderFormName || 'Nome da pasta' }}</strong><small>Pré-visualização na sidebar</small></div>
         </div>
-      }
-      <div class="modal-actions">
-        @if (editingFolder() && !folderDeleteConfirm()) {
-          <button class="delete-folder" (click)="folderDeleteConfirm.set(true)">Excluir pasta</button>
+        @if (folderDeleteConfirm()) {
+          <div class="delete-confirm" role="alert">
+            <div><strong>Excluir esta pasta?</strong><small>Arquivos e subpastas serão preservados um nível acima.</small></div>
+            <button type="button" [disabled]="folderSaving()" (click)="folderDeleteConfirm.set(false)">Manter</button>
+            <button class="danger-button" type="button" [disabled]="folderSaving()" (click)="deleteEditingFolder()">Excluir</button>
+          </div>
         }
-        <span class="action-spacer"></span>
-        <button class="cancel" (click)="folderModalOpen.set(false)">Cancelar</button>
-        <button class="confirm" [disabled]="!folderFormName.trim() || folderSaving()" (click)="saveFolder()">
-          {{ folderSaving() ? 'Salvando…' : (editingFolder() ? 'Salvar alterações' : 'Criar pasta') }}
-        </button>
-      </div>
-    </section>
-  </div>
-}
-
-@if (selectedFile(); as file) {
-  <div class="viewer">
-    <div class="viewer-bar">
-      <div><button class="icon-button" aria-label="Voltar" (click)="closePreview()">←</button><strong>{{ file.name }}</strong></div>
-      <div>
-        <button class="viewer-action" (click)="moveSelectedFile(file)">Mover</button>
-        <button class="viewer-action" (click)="renameFile(file)">Renomear</button>
-        <button class="viewer-action danger" (click)="deleteFile(file)">Excluir</button>
-        <button class="icon-button" aria-label="Fechar" (click)="closePreview()">×</button>
-      </div>
+        <div class="modal-actions">
+          @if (editingFolder() && !folderDeleteConfirm()) {
+            <button class="text-danger" type="button" [disabled]="folderSaving()" (click)="folderDeleteConfirm.set(true)">Excluir pasta</button>
+          }
+          <span class="action-spacer"></span>
+          <button class="secondary-button" type="button" [disabled]="folderSaving()" (click)="closeFolderModal()">Cancelar</button>
+          <button class="primary-button" type="button" [disabled]="!folderFormName.trim() || folderSaving()" (click)="saveFolder()">
+            {{ folderSaving() ? 'Salvando…' : (editingFolder() ? 'Salvar alterações' : 'Criar pasta') }}
+          </button>
+        </div>
+      </section>
     </div>
-    <iframe [src]="previewUrl()" sandbox="allow-scripts" title="Visualização do arquivo HTML"></iframe>
-  </div>
-}
+  }
 
-@if (toast()) { <div class="toast"><span>✓</span>{{ toast() }}</div> }
+  @if (helpOpen()) {
+    <div class="modal-layer" (click)="closeHelp()">
+      <section class="modal help-modal" role="dialog" aria-modal="true" aria-labelledby="help-title" (click)="$event.stopPropagation()">
+        <button class="modal-close" type="button" data-dialog-initial aria-label="Fechar ajuda" (click)="closeHelp()">×</button>
+        <p class="eyebrow">GUIA RÁPIDO</p>
+        <h2 id="help-title">Sua biblioteca, sem atrito</h2>
+        <p class="modal-copy">Atalhos e gestos que deixam a organização mais rápida.</p>
+        <div class="help-grid">
+          <div><kbd>Ctrl K</kbd><span><strong>Buscar</strong><small>Encontre arquivos e pastas.</small></span></div>
+          <div><kbd>/</kbd><span><strong>Busca rápida</strong><small>Ative a busca fora de um campo.</small></span></div>
+          <div><kbd>Esc</kbd><span><strong>Fechar</strong><small>Saia de menus, modais e preview.</small></span></div>
+          <div><kbd>↕</kbd><span><strong>Arrastar</strong><small>Mova um ou vários arquivos para uma pasta.</small></span></div>
+        </div>
+        <div class="help-tip"><span aria-hidden="true">✦</span><p><strong>Dica</strong>Use o check no cartão para selecionar vários materiais antes de arrastar.</p></div>
+        <div class="modal-actions"><button class="primary-button" type="button" (click)="closeHelp()">Entendi</button></div>
+      </section>
+    </div>
+  }
+
+  @if (selectedFile(); as file) {
+    <div class="viewer" role="dialog" aria-modal="true" aria-labelledby="viewer-title"
+      [attr.inert]="fileActionMode() ? '' : null">
+      <div class="viewer-bar">
+        <div class="viewer-title">
+          <button class="icon-button" type="button" data-dialog-initial aria-label="Voltar à biblioteca" (click)="closePreview()">←</button>
+          <span><small>{{ folderPath(file.folderId) }}</small><strong id="viewer-title">{{ file.name }}</strong></span>
+        </div>
+        <div class="viewer-actions">
+          <button type="button" (click)="openFileAction('move', file)">Mover</button>
+          <button type="button" (click)="openFileAction('rename', file)">Renomear</button>
+          <button class="danger" type="button" (click)="openFileAction('delete', file)">Excluir</button>
+          <button class="icon-button" type="button" aria-label="Fechar visualização" (click)="closePreview()">×</button>
+        </div>
+      </div>
+      <iframe [src]="previewUrl()" sandbox="allow-scripts" title="Visualização do arquivo HTML"></iframe>
+    </div>
+  }
+
+  @if (fileActionMode(); as mode) {
+    <div class="modal-layer file-action-layer" (click)="closeFileAction()">
+      <section class="modal file-action-modal" role="dialog" aria-modal="true" aria-labelledby="file-action-title" (click)="$event.stopPropagation()">
+        <button class="modal-close" type="button" aria-label="Fechar" [disabled]="fileActionBusy()"
+          [attr.data-dialog-initial]="mode === 'delete' ? '' : null" (click)="closeFileAction()">×</button>
+        <p class="eyebrow">AÇÃO DO ARQUIVO</p>
+        @if (mode === 'rename') {
+          <h2 id="file-action-title">Renomear material</h2>
+          <p class="modal-copy">Use um nome claro para encontrá-lo com facilidade.</p>
+          <label class="field-label" for="file-name">Nome do arquivo</label>
+          <input id="file-name" class="field-control" type="text" data-dialog-initial [disabled]="fileActionBusy()"
+            [(ngModel)]="fileRenameValue" maxlength="140">
+        } @else if (mode === 'move') {
+          <h2 id="file-action-title">Mover para outra pasta</h2>
+          <p class="modal-copy">O conteúdo do arquivo não será alterado.</p>
+          <label class="field-label" for="file-folder">Destino</label>
+          <select id="file-folder" class="field-control" data-dialog-initial [disabled]="fileActionBusy()" [(ngModel)]="fileMoveFolder">
+            <option value="">Sem pasta</option>
+            @for (entry of folderTree(); track entry.folder.id) {
+              <option [value]="entry.folder.id">{{ '— '.repeat(entry.depth) }}{{ entry.folder.name }}</option>
+            }
+          </select>
+        } @else {
+          <div class="danger-mark" aria-hidden="true">!</div>
+          <h2 id="file-action-title">Excluir este material?</h2>
+          <p class="modal-copy">Esta ação remove o arquivo da biblioteca e não pode ser desfeita.</p>
+        }
+        <div class="modal-actions">
+          <button class="secondary-button" type="button" [disabled]="fileActionBusy()" (click)="closeFileAction()">Cancelar</button>
+          <button [class]="mode === 'delete' ? 'danger-button' : 'primary-button'" type="button"
+            [disabled]="fileActionBusy() || (mode === 'rename' && !fileRenameValue.trim())" (click)="saveFileAction()">
+            {{ fileActionBusy() ? 'Salvando…' : (mode === 'delete' ? 'Excluir definitivamente' : 'Salvar') }}
+          </button>
+        </div>
+      </section>
+    </div>
+  }
+
+  @if (toast()) {
+    <div class="toast" [class.error]="toastTone() === 'error'" [class.info]="toastTone() === 'info'"
+      role="status" aria-live="polite"><span aria-hidden="true">{{ toastTone() === 'error' ? '!' : '✓' }}</span>{{ toast() }}</div>
+  }
 }
